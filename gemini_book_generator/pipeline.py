@@ -8,16 +8,20 @@ from langchain.output_parsers import PydanticOutputParser
 from pydantic import BaseModel
 from typing import List
 
+
 # --- Pydantic Models for ToC ---
 class Chapter(BaseModel):
     number: str
     title: str
 
+
 class ToC(BaseModel):
     chapters: List[Chapter]
 
+
 # --- Output Parser for Structured ToC ---
 toc_parser = PydanticOutputParser(pydantic_object=ToC)
+
 
 # --- Helper to Load Prompts from Files Relative to This Script ---
 def load_prompt(file_name: str) -> str:
@@ -25,6 +29,7 @@ def load_prompt(file_name: str) -> str:
     file_path = os.path.join(current_dir, file_name)
     with open(file_path, "r", encoding="utf-8") as f:
         return f.read()
+
 
 # Load prompt templates from external files
 toc_prompt_text = load_prompt("toc_prompt.txt")
@@ -34,6 +39,7 @@ chapter_prompt_text = load_prompt("chapter_prompt.txt")
 gemini_api_key = os.getenv("GEMINI_API_KEY")
 if not gemini_api_key:
     raise ValueError("GEMINI_API_KEY environment variable not set")
+
 
 # --- Custom LLM Wrapper for Gemini API using google-genai ---
 class GeminiLLM(LLM):
@@ -55,17 +61,19 @@ class GeminiLLM(LLM):
 
     def _call(self, prompt: str, stop=None) -> str:
         response = self.client.models.generate_content(
-            model=self.model_name,
-            contents=prompt
+            model=self.model_name, contents=prompt
         )
         return response.text.strip()
 
     async def _acall(self, prompt: str, stop=None) -> str:
         raise NotImplementedError("Async call not implemented.")
 
+
 # --- Pipeline Function ---
 def generate_book_pipeline(topic: str):
-    gemini_llm = GeminiLLM(api_key=gemini_api_key, model_name="gemini-2.0-flash", temperature=0.7)
+    gemini_llm = GeminiLLM(
+        api_key=gemini_api_key, model_name="gemini-2.0-flash", temperature=0.7
+    )
 
     # ----- Step 1: Generate the Book Index (Table of Contents) -----
     toc_template = PromptTemplate(
@@ -88,8 +96,7 @@ def generate_book_pipeline(topic: str):
 
     # ----- Step 2: Generate Detailed Content for Each Chapter -----
     chapter_template = PromptTemplate(
-        input_variables=["chapter"],
-        template=chapter_prompt_text
+        input_variables=["chapter"], template=chapter_prompt_text
     )
     chapter_chain = LLMChain(llm=gemini_llm, prompt=chapter_template)
 
@@ -105,7 +112,8 @@ def generate_book_pipeline(topic: str):
             f.write(chapter_content)
         print(f"Saved {markdown_filename}")
 
+
 if __name__ == "__main__":
     topic = "Data Structures and Algorithms"
+    topic = input("Enter the topic for the book: ")
     generate_book_pipeline(topic)
-
