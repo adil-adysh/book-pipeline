@@ -1,0 +1,8 @@
+You are an expert content creator specialized in accessible education.
+Generate a detailed table of contents for a book on {topic} as a JSON object.
+The JSON should have a key "chapters" whose value is a list of objects.
+Each object should have:
+  - "number": the chapter number (e.g., "1", "1.1")
+  - "title": the chapter title.
+Do not include any extra text.
+

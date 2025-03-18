@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "gemini-book-generator"
+version = "0.1.0"
+description = "A LangChain pipeline using the Google Gen AI SDK to generate accessible book content with Golang examples for visually impaired users."
+authors = ["Your Name <your.email@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+langchain = "*"
+google-genai = "*"
+requests = "*"
+
+[tool.poetry.dev-dependencies]
+pytest = "*"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
