@@ -1,6 +1,7 @@
 import os
 import time
 import markdown
+import tempfile
 from ebooklib import epub
 
 from google import genai
@@ -174,7 +175,7 @@ class GeminiLLM(LLM):
         raise RuntimeError("Unexpected error in _call method")
 
 
-def generate_book_pipeline(topic: str, chapter_count: str):
+def generate_book_pipeline(topic: str, chapter_count: str, directory: str):
     gemini_llm = GeminiLLM(
         api_key=gemini_api_key, model_name="gemini-2.0-flash", temperature=0.7
     )
@@ -190,11 +191,12 @@ def generate_book_pipeline(topic: str, chapter_count: str):
     print(toc_data)
 
     # Save the structured ToC to a Markdown file.
-    with open("book_index.md", "w", encoding="utf-8") as f:
+    toc_md_path = os.path.join(directory, "book_index.md")
+    with open(toc_md_path, "w", encoding="utf-8") as f:
         f.write(f"# Table of Contents for {topic}\n\n")
         for chapter in toc_data.chapters:
             f.write(f"{chapter.number}. {chapter.title}\n")
-    print("Saved book_index.md")
+    print(f"Saved {toc_md_path}")
 
     # ----- Step 2: Generate Detailed Content for Each Chapter -----
     chapter_template = PromptTemplate(
@@ -208,18 +210,25 @@ def generate_book_pipeline(topic: str, chapter_count: str):
         chapter_content = chapter_chain.run(chapter_heading)
         safe_chapter_number = chapter.number.replace(".", "_")
         markdown_filename = f"chapter_{safe_chapter_number}.md"
-        with open(markdown_filename, "w", encoding="utf-8") as f:
+        chapter_md_path = os.path.join(directory, markdown_filename)
+        with open(chapter_md_path, "w", encoding="utf-8") as f:
             f.write(f"# {chapter_heading}\n\n")
             f.write(chapter_content)
-        print(f"Saved {markdown_filename}")
+        print(f"Saved {chapter_md_path}")
 
 
 if __name__ == "__main__":
     topic = input("Enter the topic for the book: ")
     chapterCount = input("Enter number of chapters to be generated for the book: ")
-    # Generate the book content (ToC and chapters) as Markdown files.
-    generate_book_pipeline(topic, chapter_count=chapterCount)
-    # Create an EPUB that includes the book index and the chapters.
-    epub_filename = "generated_book.epub"
+    epub_filename = f"{topic}.epub"  # EPUB file name based on the topic
     book_title = f"Book on {topic}"
-    create_epub_from_md(epub_filename, book_title)
+
+    # Use a temporary directory to store Markdown files
+    with tempfile.TemporaryDirectory() as temp_dir:
+        print(f"Using temporary directory: {temp_dir}")
+        # Generate the book content (ToC and chapters) as Markdown files in the temp directory.
+        generate_book_pipeline(topic, chapter_count=chapterCount, directory=temp_dir)
+        # Create an EPUB that includes the book index and the chapters.
+        create_epub_from_md(epub_filename, book_title, directory=temp_dir)
+
+    print(f"Temporary files cleaned up. EPUB saved as '{epub_filename}'.")
