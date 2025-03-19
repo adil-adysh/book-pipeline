@@ -2,6 +2,7 @@ import os
 import time
 import markdown
 import tempfile
+import argparse
 from ebooklib import epub
 
 from google import genai
@@ -13,17 +14,10 @@ from pydantic import BaseModel
 from typing import List, Any, Optional
 
 
-# --- Helper to Load Prompts from Files Relative to This Script ---
-def load_prompt(file_name: str) -> str:
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(current_dir, file_name)
+# --- Helper to Load Prompts from Files ---
+def load_prompt(file_path: str) -> str:
     with open(file_path, "r", encoding="utf-8") as f:
         return f.read()
-
-
-# Load prompt templates from external files
-toc_prompt_text = load_prompt("toc_prompt.txt")
-chapter_prompt_text = load_prompt("chapter_prompt.txt")
 
 
 # --- Pydantic Models for ToC ---
@@ -176,7 +170,12 @@ class GeminiLLM(LLM):
 
 
 def generate_book_pipeline(
-    topic: str, chapter_count: str, directory: str, subTopics: str
+    topic: str,
+    chapter_count: str,
+    directory: str,
+    sub_topics: str,
+    chapter_prompt_text: str,
+    toc_prompt_text: str,
 ):
     gemini_llm = GeminiLLM(
         api_key=gemini_api_key, model_name="gemini-2.0-flash", temperature=0.7
@@ -192,7 +191,7 @@ def generate_book_pipeline(
         {
             "topic": topic,
             "chapterCount": chapter_count,
-            "subTopics": subTopics,
+            "subTopics": sub_topics,
         }
     )
     print("Generated structured ToC:")
@@ -225,22 +224,69 @@ def generate_book_pipeline(
         print(f"Saved {chapter_md_path}")
 
 
-if __name__ == "__main__":
+def main():
+    # Mandatory inputs using input()
     topic = input("Enter the topic for the book: ")
-    chapterCount = input("Enter number of chapters to be generated for the book: ")
-    subTopics = input("Enter subtopics (comma-separated, if any): ")
+    chapter_count = input("Enter number of chapters to be generated for the book: ")
 
-    epub_filename = f"{topic}.epub"  # EPUB file name based on the topic
+    # Optional flags for subtopics and secondary prompt files
+    parser = argparse.ArgumentParser(
+        description="Optional flags for subtopics and secondary prompt file paths"
+    )
+    parser.add_argument(
+        "--subtopics",
+        help="Comma-separated list of subtopics (optional)",
+        default="",
+    )
+    parser.add_argument(
+        "--secondary-toc-prompt-file",
+        help="Path to the secondary Table of Contents prompt file (optional)",
+        default="",
+    )
+    parser.add_argument(
+        "--secondary-chapter-prompt-file",
+        help="Path to the secondary chapter prompt file (optional)",
+        default="",
+    )
+    # Parse only known args so that it doesn't interfere with interactive inputs
+    args, _ = parser.parse_known_args()
+
+    # Load primary prompt templates from default files
+    global toc_prompt_text, chapter_prompt_text
+    toc_prompt_text = load_prompt("toc_prompt.txt")
+    chapter_prompt_text = load_prompt("chapter_prompt.txt")
+
+    # Append secondary prompt details if provided via flags
+    if args.secondary_toc_prompt_file:
+        try:
+            secondary_toc_prompt = load_prompt(args.secondary_toc_prompt_file)
+            toc_prompt_text += "\n" + secondary_toc_prompt
+        except Exception as e:
+            print(f"Warning: Could not load secondary ToC prompt file: {e}")
+    if args.secondary_chapter_prompt_file:
+        try:
+            secondary_chapter_prompt = load_prompt(args.secondary_chapter_prompt_file)
+            chapter_prompt_text += "\n" + secondary_chapter_prompt
+        except Exception as e:
+            print(f"Warning: Could not load secondary chapter prompt file: {e}")
+
+    epub_filename = f"{topic}.epub"
     book_title = f"Book on {topic}"
 
     # Use a temporary directory to store Markdown files
     with tempfile.TemporaryDirectory() as temp_dir:
-        print(f"Using temporary directory: {temp_dir}")
-        # Generate the book content (ToC and chapters) as Markdown files in the temp directory.
         generate_book_pipeline(
-            topic, chapter_count=chapterCount, directory=temp_dir, subTopics=subTopics
+            topic=topic,
+            chapter_count=chapter_count,
+            directory=temp_dir,
+            sub_topics=args.subtopics,
+            chapter_prompt_text=chapter_prompt_text,
+            toc_prompt_text=toc_prompt_text,
         )
-        # Create an EPUB that includes the book index and the chapters.
         create_epub_from_md(epub_filename, book_title, directory=temp_dir)
 
     print(f"Temporary files cleaned up. EPUB saved as '{epub_filename}'.")
+
+
+if __name__ == "__main__":
+    main()
