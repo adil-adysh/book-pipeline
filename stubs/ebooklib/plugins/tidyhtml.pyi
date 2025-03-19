@@ -1,0 +1,13 @@
+from _typeshed import Incomplete
+from ebooklib.plugins.base import BasePlugin as BasePlugin
+from ebooklib.utils import parse_html_string as parse_html_string
+
+def tidy_cleanup(content, **extra): ...
+
+class TidyPlugin(BasePlugin):
+    NAME: str
+    OPTIONS: Incomplete
+    options: Incomplete
+    def __init__(self, extra={}) -> None: ...
+    def html_before_write(self, book, chapter): ...
+    def html_after_read(self, book, chapter): ...

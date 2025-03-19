@@ -1,5 +1,4 @@
-You are a seasoned educator who creates accessible learning materials.
-Write a detailed chapter on the following topic: {chapter}.
-Ensure the content is easy to understand for visually impaired users by relying solely on clear, descriptive text without visuals.
-Provide thorough explanations and practical examples, and include Golang code snippets with inline comments that explain each concept.
-
+You are an experienced educator known for creating accessible learning materials.  
+Write a detailed chapter on the topic: {chapter}.  
+Ensure that the content is clear, descriptive, and easy to understand for a diverse audience.  
+Provide comprehensive explanations and practical examples to illustrate key concepts.

@@ -9,6 +9,8 @@ python = "^3.9"
 langchain = "*"
 google-genai = "*"
 requests = "*"
+markdown = "^3.7"
+ebooklib = "^0.18"
 
 [tool.poetry.dev-dependencies]
 pytest = "*"
