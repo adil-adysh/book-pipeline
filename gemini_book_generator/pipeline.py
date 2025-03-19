@@ -1,4 +1,8 @@
 import os
+import time
+import markdown
+from ebooklib import epub
+
 from google import genai
 from langchain.llms.base import LLM
 from langchain_core.prompts import PromptTemplate
@@ -6,20 +10,6 @@ from langchain.chains import LLMChain
 from langchain.output_parsers import PydanticOutputParser
 from pydantic import BaseModel
 from typing import List, Any, Optional
-
-
-# --- Pydantic Models for ToC ---
-class Chapter(BaseModel):
-    number: str
-    title: str
-
-
-class ToC(BaseModel):
-    chapters: List[Chapter]
-
-
-# --- Output Parser for Structured ToC ---
-toc_parser = PydanticOutputParser(pydantic_object=ToC)
 
 
 # --- Helper to Load Prompts from Files Relative to This Script ---
@@ -34,24 +24,117 @@ def load_prompt(file_name: str) -> str:
 toc_prompt_text = load_prompt("toc_prompt.txt")
 chapter_prompt_text = load_prompt("chapter_prompt.txt")
 
-# Retrieve your API key from an environment variable
+
+# --- Pydantic Models for ToC ---
+class ChapterModel(BaseModel):
+    number: str
+    title: str
+
+
+class ToC(BaseModel):
+    chapters: List[ChapterModel]
+
+
+# --- Output Parser for Structured ToC ---
+toc_parser = PydanticOutputParser(pydantic_object=ToC)
+
+
+# --- Functions for EPUB Generation ---
+def extract_chapter_key(filename: str):
+    """
+    Extract a tuple of integers from a filename.
+    For example, 'chapter_1_2.md' returns (1, 2).
+    """
+    basename = os.path.splitext(filename)[0]
+    if basename.startswith("chapter_"):
+        num_part = basename[len("chapter_") :]
+    else:
+        return (-1,)
+    try:
+        return tuple(int(part) for part in num_part.split("_") if part)
+    except ValueError:
+        return (float("inf"),)
+
+
+def get_sorted_chapter_files(directory="."):
+    files = [
+        f
+        for f in os.listdir(directory)
+        if f.startswith("chapter_") and f.endswith(".md")
+    ]
+    files.sort(key=extract_chapter_key)
+    return files
+
+
+def create_epub_from_md(epub_filename: str, book_title: str, directory="."):
+    book = epub.EpubBook()
+    book.set_title(book_title)
+    book.set_language("en")
+
+    spine = ["nav"]
+
+    # Add the book index if it exists (assumed as preface/intro)
+    index_path = os.path.join(directory, "book_index.md")
+    if os.path.exists(index_path):
+        with open(index_path, "r", encoding="utf-8") as f:
+            index_content = f.read()
+        index_html = markdown.markdown(index_content)
+        index_item = epub.EpubHtml(
+            title="Table of Contents", file_name="index.xhtml", content=index_html
+        )
+        book.add_item(index_item)
+        spine.append(index_item.file_name)
+
+    # Process chapter Markdown files
+    chapter_files = get_sorted_chapter_files(directory)
+    for md_file in chapter_files:
+        with open(os.path.join(directory, md_file), "r", encoding="utf-8") as f:
+            md_content = f.read()
+        html_content = markdown.markdown(md_content)
+        chapter_title = os.path.splitext(md_file)[0]
+        chapter = epub.EpubHtml(
+            title=chapter_title,
+            file_name=md_file.replace(".md", ".xhtml"),
+            content=html_content,
+        )
+        book.add_item(chapter)
+        spine.append(chapter.file_name)
+
+    book.toc = tuple(spine[1:])  # Skip the 'nav' element
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+
+    # Optionally add CSS styling
+    style = "body { font-family: Arial, sans-serif; }"
+    nav_css = epub.EpubItem(
+        uid="style_nav", file_name="style/nav.css", media_type="text/css", content=style
+    )
+    book.add_item(nav_css)
+
+    book.spine = spine
+    epub.write_epub(epub_filename, book, {})
+    print(f"EPUB created: {epub_filename}")
+
+
+# Retrieve your API key from environment variable
 gemini_api_key = os.getenv("GEMINI_API_KEY")
 if not gemini_api_key:
     raise ValueError("GEMINI_API_KEY environment variable not set")
 
 
-# --- Custom LLM Wrapper for Gemini API using google-genai ---
+# --- Custom LLM Wrapper for Gemini API ---
 class GeminiLLM(LLM):
     api_key: str
     model_name: str = "gemini-2.0-flash"
     temperature: float = 0.7
-    client: genai.Client = genai.Client()
+    client: genai.Client = genai.Client(api_key=gemini_api_key)
 
     class Config:
         arbitrary_types_allowed = True
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.api_key = kwargs.get("api_key")
         self.client = genai.Client(api_key=self.api_key)
 
     @property
@@ -59,7 +142,6 @@ class GeminiLLM(LLM):
         return "gemini"
 
     def _truncate_on_stop_tokens(self, text: str, stop: List[str]) -> str:
-        """Truncate the text at the first occurrence of any provided stop token."""
         for token in stop:
             if token in text:
                 return text.split(token)[0]
@@ -69,58 +151,41 @@ class GeminiLLM(LLM):
         self,
         prompt: str,
         stop: Optional[List[str]] = None,
-        run_manager: Optional[
-            Any
-        ] = None,  # Callback manager; not used in this implementation
+        run_manager: Optional[Any] = None,
         **kwargs: Any,
     ) -> str:
-        import time
-
         max_retries = 3
-
         for attempt in range(1, max_retries + 1):
             try:
                 response = self.client.models.generate_content(
                     model=self.model_name, contents=prompt
                 )
-                # Check for HTTP errors if status_code attribute exists.
                 if hasattr(response, "status_code") and response.status_code != 200:
                     raise RuntimeError(f"HTTP error: {response.status_code}")
-
                 text = response.text.strip() if response.text else ""
-
                 if stop:
                     text = self._truncate_on_stop_tokens(text, stop)
-
                 return text
-
             except Exception as e:
                 print(f"Attempt {attempt} failed with error: {e}")
-
                 if attempt == max_retries:
                     raise RuntimeError(f"Failed after {max_retries} attempts: {str(e)}")
-
                 time.sleep(2**attempt)
-
-        # In case the loop exits unexpectedly (should not happen), raise an error.
         raise RuntimeError("Unexpected error in _call method")
 
 
-# --- Pipeline Function ---
-def generate_book_pipeline(topic: str):
+def generate_book_pipeline(topic: str, chapter_count: str):
     gemini_llm = GeminiLLM(
         api_key=gemini_api_key, model_name="gemini-2.0-flash", temperature=0.7
     )
 
     # ----- Step 1: Generate the Book Index (Table of Contents) -----
     toc_template = PromptTemplate(
-        input_variables=["topic"],
-        template=toc_prompt_text,
+        input_variables=["topic", "chapterCount"], template=toc_prompt_text
     )
-    # Pass the output parser to the chain so the LLM output is automatically parsed.
     toc_chain = LLMChain(llm=gemini_llm, prompt=toc_template, output_parser=toc_parser)
-    # Run the chain; toc_data is an instance of ToC.
-    toc_data = toc_chain.run(topic)
+    # Pass the chapter count as a variable to the prompt
+    toc_data = toc_chain.run({"topic": topic, "chapterCount": chapter_count})
     print("Generated structured ToC:")
     print(toc_data)
 
@@ -141,7 +206,6 @@ def generate_book_pipeline(topic: str):
         chapter_heading = f"{chapter.number}. {chapter.title}"
         print(f"\nGenerating content for chapter: {chapter_heading}")
         chapter_content = chapter_chain.run(chapter_heading)
-        # Replace dots with underscores in the chapter number for a safe filename.
         safe_chapter_number = chapter.number.replace(".", "_")
         markdown_filename = f"chapter_{safe_chapter_number}.md"
         with open(markdown_filename, "w", encoding="utf-8") as f:
@@ -151,6 +215,11 @@ def generate_book_pipeline(topic: str):
 
 
 if __name__ == "__main__":
-    topic = "Data Structures and Algorithms"
     topic = input("Enter the topic for the book: ")
-    generate_book_pipeline(topic)
+    chapterCount = input("Enter number of chapters to be generated for the book: ")
+    # Generate the book content (ToC and chapters) as Markdown files.
+    generate_book_pipeline(topic, chapter_count=chapterCount)
+    # Create an EPUB that includes the book index and the chapters.
+    epub_filename = "generated_book.epub"
+    book_title = f"Book on {topic}"
+    create_epub_from_md(epub_filename, book_title)
