@@ -1,5 +1,4 @@
 import os
-import json
 from google import genai
 from langchain.llms.base import LLM
 from langchain_core.prompts import PromptTemplate
@@ -46,7 +45,7 @@ class GeminiLLM(LLM):
     api_key: str
     model_name: str = "gemini-2.0-flash"
     temperature: float = 0.7
-    client: any = None  # Holds the google-genai Client instance
+    client: genai.Client = genai.Client()
 
     class Config:
         arbitrary_types_allowed = True
@@ -64,9 +63,6 @@ class GeminiLLM(LLM):
             model=self.model_name, contents=prompt
         )
         return response.text.strip()
-
-    async def _acall(self, prompt: str, stop=None) -> str:
-        raise NotImplementedError("Async call not implemented.")
 
 
 # --- Pipeline Function ---
