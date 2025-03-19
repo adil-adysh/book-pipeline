@@ -1,0 +1,6 @@
+from . import _api_client
+
+class BaseModule:
+    def __init__(self, api_client_: _api_client.BaseApiClient) -> None: ...
+    @property
+    def vertexai(self) -> bool | None: ...
