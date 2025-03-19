@@ -175,18 +175,26 @@ class GeminiLLM(LLM):
         raise RuntimeError("Unexpected error in _call method")
 
 
-def generate_book_pipeline(topic: str, chapter_count: str, directory: str):
+def generate_book_pipeline(
+    topic: str, chapter_count: str, directory: str, subTopics: str
+):
     gemini_llm = GeminiLLM(
         api_key=gemini_api_key, model_name="gemini-2.0-flash", temperature=0.7
     )
 
     # ----- Step 1: Generate the Book Index (Table of Contents) -----
     toc_template = PromptTemplate(
-        input_variables=["topic", "chapterCount"], template=toc_prompt_text
+        input_variables=["topic", "chapterCount", "subTopics"],
+        template=toc_prompt_text,
     )
     toc_chain = LLMChain(llm=gemini_llm, prompt=toc_template, output_parser=toc_parser)
-    # Pass the chapter count as a variable to the prompt
-    toc_data = toc_chain.run({"topic": topic, "chapterCount": chapter_count})
+    toc_data = toc_chain.run(
+        {
+            "topic": topic,
+            "chapterCount": chapter_count,
+            "subTopics": subTopics,
+        }
+    )
     print("Generated structured ToC:")
     print(toc_data)
 
@@ -220,6 +228,8 @@ def generate_book_pipeline(topic: str, chapter_count: str, directory: str):
 if __name__ == "__main__":
     topic = input("Enter the topic for the book: ")
     chapterCount = input("Enter number of chapters to be generated for the book: ")
+    subTopics = input("Enter subtopics (comma-separated, if any): ")
+
     epub_filename = f"{topic}.epub"  # EPUB file name based on the topic
     book_title = f"Book on {topic}"
 
@@ -227,7 +237,9 @@ if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as temp_dir:
         print(f"Using temporary directory: {temp_dir}")
         # Generate the book content (ToC and chapters) as Markdown files in the temp directory.
-        generate_book_pipeline(topic, chapter_count=chapterCount, directory=temp_dir)
+        generate_book_pipeline(
+            topic, chapter_count=chapterCount, directory=temp_dir, subTopics=subTopics
+        )
         # Create an EPUB that includes the book index and the chapters.
         create_epub_from_md(epub_filename, book_title, directory=temp_dir)
 
