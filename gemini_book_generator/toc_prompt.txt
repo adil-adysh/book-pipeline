@@ -1,7 +1,11 @@
 You are an expert content creator specializing in accessible education.  
 Generate a detailed table of contents for a book on {topic} as a JSON object that includes exactly {chapterCount} chapters.  
-The JSON object must include a key "chapters" with an array of {chapterCount} chapter objects.  
-Each chapter object should contain:  
+
+The JSON object must have a key "chapters" containing an array of {chapterCount} chapter objects.  
+Each chapter object must include:  
 - "number": the chapter number (e.g., "1", "1.1")  
-- "title": the chapter title.  
-Return only the JSON output without any additional text.
+- "title": the chapter title  
+
+If subtopics are provided (e.g., {subTopics}), integrate them into the JSON structure as dedicated entries—either as separate chapters or as sub-chapters—according to their relevance.  
+
+Return only the JSON output without any additional text.  
