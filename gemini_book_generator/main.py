@@ -1,7 +1,7 @@
 import os
 import tempfile
 import argparse
-from helpers import load_prompt
+from helpers import load_prompt, get_prompt_file_path
 from epub_generator import create_epub_from_md
 from book_pipeline import generate_book_pipeline
 
@@ -59,20 +59,32 @@ def main():
         chapter_count = input("Enter the number of chapters to generate: ").strip()
 
         # Load primary prompt templates.
-        toc_prompt_text = load_prompt("toc_prompt.txt")
-        chapter_prompt_text = load_prompt("chapter_prompt.txt")
+        toc_prompt_text = load_prompt(get_prompt_file_path("toc_prompt.txt"))
+        chapter_prompt_text = load_prompt(get_prompt_file_path("chapter_prompt.txt"))
 
-        # Append secondary prompt details if provided.
+        # Get current working directory to resolve secondary prompt file paths.
+        cur_dir = os.getcwd()
+
+        # Append secondary ToC prompt details if provided.
         if args.toc_prompt_file:
             try:
-                secondary_toc_prompt = load_prompt(args.toc_prompt_file)
+                toc_prompt_path = args.toc_prompt_file
+                # If not an absolute path, join with the current directory.
+                if not os.path.isabs(toc_prompt_path):
+                    toc_prompt_path = os.path.join(cur_dir, toc_prompt_path)
+                secondary_toc_prompt = load_prompt(toc_prompt_path)
                 toc_prompt_text += "\n" + secondary_toc_prompt
             except Exception as e:
                 print(f"Warning: Could not load ToC prompt file: {e}")
 
+        # Append secondary chapter prompt details if provided.
         if args.chapter_prompt_file:
             try:
-                secondary_chapter_prompt = load_prompt(args.chapter_prompt_file)
+                chapter_prompt_path = args.chapter_prompt_file
+                # If not an absolute path, join with the current directory.
+                if not os.path.isabs(chapter_prompt_path):
+                    chapter_prompt_path = os.path.join(cur_dir, chapter_prompt_path)
+                secondary_chapter_prompt = load_prompt(chapter_prompt_path)
                 chapter_prompt_text += "\n" + secondary_chapter_prompt
             except Exception as e:
                 print(f"Warning: Could not load chapter prompt file: {e}")

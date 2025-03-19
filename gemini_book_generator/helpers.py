@@ -1,10 +1,15 @@
 import os
 
 
-# --- Helper to Load Prompts from Files Relative to This Script ---
-def load_prompt(file_name: str) -> str:
+# --- Helper to Get File Path Relative to This Script ---
+def get_prompt_file_path(file_name: str) -> str:
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(current_dir, file_name)
+    prompts_dir = os.path.join(current_dir, "prompts")
+    return os.path.join(prompts_dir, file_name)
+
+
+# --- Helper to Load Prompts from Files ---
+def load_prompt(file_path: str) -> str:
     with open(file_path, "r", encoding="utf-8") as f:
         return f.read()
 
