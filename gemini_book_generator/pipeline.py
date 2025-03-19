@@ -5,7 +5,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain.output_parsers import PydanticOutputParser
 from pydantic import BaseModel
-from typing import List
+from typing import List, Any, Optional
 
 
 # --- Pydantic Models for ToC ---
@@ -58,11 +58,52 @@ class GeminiLLM(LLM):
     def _llm_type(self) -> str:
         return "gemini"
 
-    def _call(self, prompt: str, stop=None) -> str:
-        response = self.client.models.generate_content(
-            model=self.model_name, contents=prompt
-        )
-        return response.text.strip()
+    def _truncate_on_stop_tokens(self, text: str, stop: List[str]) -> str:
+        """Truncate the text at the first occurrence of any provided stop token."""
+        for token in stop:
+            if token in text:
+                return text.split(token)[0]
+        return text
+
+    def _call(
+        self,
+        prompt: str,
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[
+            Any
+        ] = None,  # Callback manager; not used in this implementation
+        **kwargs: Any,
+    ) -> str:
+        import time
+
+        max_retries = 3
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model_name, contents=prompt
+                )
+                # Check for HTTP errors if status_code attribute exists.
+                if hasattr(response, "status_code") and response.status_code != 200:
+                    raise RuntimeError(f"HTTP error: {response.status_code}")
+
+                text = response.text.strip() if response.text else ""
+
+                if stop:
+                    text = self._truncate_on_stop_tokens(text, stop)
+
+                return text
+
+            except Exception as e:
+                print(f"Attempt {attempt} failed with error: {e}")
+
+                if attempt == max_retries:
+                    raise RuntimeError(f"Failed after {max_retries} attempts: {str(e)}")
+
+                time.sleep(2**attempt)
+
+        # In case the loop exits unexpectedly (should not happen), raise an error.
+        raise RuntimeError("Unexpected error in _call method")
 
 
 # --- Pipeline Function ---
