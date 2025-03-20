@@ -73,3 +73,5 @@ dmypy.json
 # If you prefer not to track it, uncomment the next line:
 # poetry.lock
 
+*.epub
+*.txt

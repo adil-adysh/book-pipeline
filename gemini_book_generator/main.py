@@ -1,6 +1,8 @@
 import os
 import tempfile
 import argparse
+import logging  # added logging
+
 from helpers import load_prompt, get_prompt_file_path
 from epub_generator import create_epub_from_md
 from book_pipeline import generate_book_pipeline
@@ -34,6 +36,11 @@ def parse_cli_args():
         help="Path to a custom chapter prompt file (optional).",
         default="",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug mode with verbose logging.",
+    )
     args, _ = parser.parse_known_args()
     return args
 
@@ -48,11 +55,17 @@ def get_api_key():
 
 def main():
     try:
+        # Validate that the API key exists.
+        get_api_key()
+
         # Parse CLI args early so that --help is processed before any interactive input.
         args = parse_cli_args()
 
-        # Validate that the API key exists.
-        get_api_key()
+        # Configure logging based on debug flag.
+        logging.basicConfig(
+            level=logging.DEBUG if args.debug else logging.INFO,
+            format="%(asctime)s - %(levelname)s - %(message)s",
+        )
 
         # Now, gather mandatory inputs as strings.
         topic = input("Enter the topic for the book: ").strip()
@@ -61,6 +74,8 @@ def main():
         # Load primary prompt templates.
         toc_prompt_text = load_prompt(get_prompt_file_path("toc_prompt.txt"))
         chapter_prompt_text = load_prompt(get_prompt_file_path("chapter_prompt.txt"))
+        logging.debug("Initial ToC prompt text: %s", toc_prompt_text)
+        logging.debug("Initial chapter prompt text: %s", chapter_prompt_text)
 
         # Get current working directory to resolve secondary prompt file paths.
         cur_dir = os.getcwd()
@@ -74,8 +89,9 @@ def main():
                     toc_prompt_path = os.path.join(cur_dir, toc_prompt_path)
                 secondary_toc_prompt = load_prompt(toc_prompt_path)
                 toc_prompt_text += "\n" + secondary_toc_prompt
+                logging.debug("Appended secondary ToC prompt: %s", secondary_toc_prompt)
             except Exception as e:
-                print(f"Warning: Could not load ToC prompt file: {e}")
+                logging.warning("Could not load ToC prompt file: %s", e)
 
         # Append secondary chapter prompt details if provided.
         if args.chapter_prompt_file:
@@ -86,8 +102,11 @@ def main():
                     chapter_prompt_path = os.path.join(cur_dir, chapter_prompt_path)
                 secondary_chapter_prompt = load_prompt(chapter_prompt_path)
                 chapter_prompt_text += "\n" + secondary_chapter_prompt
+                logging.debug(
+                    "Appended secondary chapter prompt: %s", secondary_chapter_prompt
+                )
             except Exception as e:
-                print(f"Warning: Could not load chapter prompt file: {e}")
+                logging.warning("Could not load chapter prompt file: %s", e)
 
         epub_filename = f"{topic}.epub"
         book_title = f"Book on {topic}"
@@ -104,9 +123,9 @@ def main():
             )
             create_epub_from_md(epub_filename, book_title, directory=temp_dir)
 
-        print(f"Temporary files cleaned up. EPUB saved as '{epub_filename}'.")
+        logging.info("Temporary files cleaned up. EPUB saved as '%s'.", epub_filename)
     except Exception as e:
-        print(f"Error: {e}")
+        logging.error("Error: %s", e)
 
 
 if __name__ == "__main__":
