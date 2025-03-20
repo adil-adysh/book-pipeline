@@ -13,24 +13,25 @@ from gemini_book_generator.common_logger import logger
 DEFAULT_TEMPERATURE = 0.7
 DEFAULT_MODEL_NAME = "gemini-2.0-flash"
 
-# --- Retrieve Configuration for Temperature and Model Name ---
+# --- Global Configuration Loading (Only Once) ---
 
-# Attempt to read environment variables first
+# Retrieve environment variables first
 temperature_env = os.getenv("GEMINI_TEMPERATURE")
 model_name_env = os.getenv("GEMINI_MODEL_NAME")
+gemini_api_key = os.getenv("GEMINI_API_KEY")
+if not gemini_api_key:
+    raise ValueError("GEMINI_API_KEY environment variable not set")
 
-# Build the path to the config file and load it if available
-config_path = os.path.join(os.path.dirname(__file__), "gemini_config.json")
+# Build the path to the default config file
+DEFAULT_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "gemini_config.json")
 try:
-    with open(config_path, "r") as f:
+    with open(DEFAULT_CONFIG_PATH, "r") as f:
         config_data = json.load(f)
-    logger.info(f"Loaded config from {config_path}: {config_data}")
 except Exception as e:
-    logger.warning(f"Could not load gemini config file {config_path}: {e}")
+    logger.error(f"Could not load gemini config file {DEFAULT_CONFIG_PATH}: {e}")
     config_data = {}
 
-# For temperature, environment variable takes precedence over config file,
-# and we fallback to a default if neither is provided.
+# Determine temperature and model name with environment variables taking precedence
 temperature_value = (
     temperature_env
     if temperature_env is not None
@@ -39,54 +40,32 @@ temperature_value = (
 try:
     temperature = float(temperature_value)
 except (ValueError, TypeError) as e:
-    logger.warning(
+    logger.error(
         f"Could not convert temperature '{temperature_value}' to float, using default {DEFAULT_TEMPERATURE}: {e}"
     )
     temperature = DEFAULT_TEMPERATURE
 
-# For model name, use environment variable if available, otherwise fallback to config/default.
 model_name = model_name_env or config_data.get("model_name", DEFAULT_MODEL_NAME)
 
-# Retrieve your API key from the environment variable
-gemini_api_key = os.getenv("GEMINI_API_KEY")
-if not gemini_api_key:
-    raise ValueError("GEMINI_API_KEY environment variable not set")
-
-# Use the loaded config file path as the default config path for the package.
-DEFAULT_CONFIG_PATH = config_path
+# Print the final configuration values
+print(f"Using model name: {model_name}, temperature: {temperature}")
 
 
 # --- Custom LLM Wrapper for Gemini API ---
 class GeminiLLM(LLM):
-    api_key: str
     model_name: str = model_name
     temperature: float = temperature
-    client: genai.Client = genai.Client(api_key=gemini_api_key)
+    api_key: str = gemini_api_key  # Explicitly define API key
+    client: genai.Client = genai.Client(api_key=api_key)
 
     class Config:
         arbitrary_types_allowed = True
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.api_key = kwargs.get("api_key", gemini_api_key)
-        # Load model configuration from file, if provided
-        config_path_local = kwargs.get("config_file", DEFAULT_CONFIG_PATH)
-        try:
-            with open(config_path_local, "r") as f:
-                config_data_local = json.load(f)
-            self.model_name = config_data_local.get("model_name", self.model_name)
-            temp_val = config_data_local.get("temperature", self.temperature)
-            try:
-                self.temperature = float(temp_val)
-            except (ValueError, TypeError) as e:
-                logger.warning(
-                    f"Could not convert temperature '{temp_val}' to float, using default {self.temperature}: {e}"
-                )
-            logger.info(f"Loaded config from {config_path_local}: {config_data_local}")
-        except Exception as e:
-            logger.warning(
-                f"Could not load gemini config file {config_path_local}: {e}"
-            )
+        self.api_key = gemini_api_key  # Ensure the API key is set
+        self.model_name = model_name
+        self.temperature = temperature
         self.client = genai.Client(api_key=self.api_key)
 
     @property
@@ -129,7 +108,7 @@ class GeminiLLM(LLM):
     def list_models(cls) -> List[str]:
         """List available Gemini model names."""
         try:
-            client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+            client = genai.Client(api_key=gemini_api_key)
             models_pager = client.models.list()
             model_names = [
                 model.name.split("/", 2)[1]
@@ -138,5 +117,5 @@ class GeminiLLM(LLM):
             ]
             return model_names
         except Exception as e:
-            logger.error("Failed to list gemini models: %s", e)
+            logger.error(f"Failed to list gemini models: {e}")
             return []
