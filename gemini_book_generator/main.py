@@ -57,6 +57,57 @@ def get_api_key():
     return gemini_api_key
 
 
+def get_combined_prompts(args, cur_dir):
+    """Return tuple of (toc_prompt_text, chapter_prompt_text) after applying any custom prompt files."""
+    toc_prompt_text = load_prompt(get_prompt_file_path("toc_prompt.txt"))
+    chapter_prompt_text = load_prompt(get_prompt_file_path("chapter_prompt.txt"))
+
+    if args.toc_prompt_file:
+        try:
+            toc_prompt_path = args.toc_prompt_file
+            if not os.path.isabs(toc_prompt_path):
+                toc_prompt_path = os.path.join(cur_dir, toc_prompt_path)
+            secondary_toc_prompt = load_prompt(toc_prompt_path)
+            toc_prompt_text += "\n" + secondary_toc_prompt
+            logger.debug("Appended secondary ToC prompt: %s", secondary_toc_prompt)
+        except Exception as e:
+            logger.warning("Could not load ToC prompt file: %s", e)
+
+    if args.chapter_prompt_file:
+        try:
+            chapter_prompt_path = args.chapter_prompt_file
+            if not os.path.isabs(chapter_prompt_path):
+                chapter_prompt_path = os.path.join(cur_dir, chapter_prompt_path)
+            secondary_chapter_prompt = load_prompt(chapter_prompt_path)
+            chapter_prompt_text += "\n" + secondary_chapter_prompt
+            logger.debug(
+                "Appended secondary chapter prompt: %s", secondary_chapter_prompt
+            )
+        except Exception as e:
+            logger.warning("Could not load chapter prompt file: %s", e)
+
+    return toc_prompt_text, chapter_prompt_text
+
+
+def run_book_pipeline(topic, chapter_count, args, toc_prompt_text, chapter_prompt_text):
+    """Runs the book generation pipeline given the parameters."""
+    epub_filename = f"{topic}.epub"
+    book_title = f"Book on {topic}"
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        generate_book_pipeline(
+            topic=topic,
+            chapter_count=chapter_count,  # Chapter count remains a string.
+            directory=temp_dir,
+            sub_topics=args.subtopics_list,
+            chapter_prompt_text=chapter_prompt_text,
+            toc_prompt_text=toc_prompt_text,
+        )
+        create_epub_from_md(epub_filename, book_title, directory=temp_dir)
+
+    logger.info("Temporary files cleaned up. EPUB saved as '%s'.", epub_filename)
+
+
 def main():
     try:
         # Validate that the API key exists.
@@ -85,59 +136,17 @@ def main():
         topic = input("Enter the topic for the book: ").strip()
         chapter_count = input("Enter the number of chapters to generate: ").strip()
 
-        # Load primary prompt templates.
-        toc_prompt_text = load_prompt(get_prompt_file_path("toc_prompt.txt"))
-        chapter_prompt_text = load_prompt(get_prompt_file_path("chapter_prompt.txt"))
-        logger.debug("Initial ToC prompt text: %s", toc_prompt_text)
-        logger.debug("Initial chapter prompt text: %s", chapter_prompt_text)
-
         # Get current working directory to resolve secondary prompt file paths.
         cur_dir = os.getcwd()
 
-        # Append secondary ToC prompt details if provided.
-        if args.toc_prompt_file:
-            try:
-                toc_prompt_path = args.toc_prompt_file
-                # If not an absolute path, join with the current directory.
-                if not os.path.isabs(toc_prompt_path):
-                    toc_prompt_path = os.path.join(cur_dir, toc_prompt_path)
-                secondary_toc_prompt = load_prompt(toc_prompt_path)
-                toc_prompt_text += "\n" + secondary_toc_prompt
-                logger.debug("Appended secondary ToC prompt: %s", secondary_toc_prompt)
-            except Exception as e:
-                logger.warning("Could not load ToC prompt file: %s", e)
+        toc_prompt_text, chapter_prompt_text = get_combined_prompts(args, cur_dir)
+        logger.debug("Initial ToC prompt text: %s", toc_prompt_text)
+        logger.debug("Initial chapter prompt text: %s", chapter_prompt_text)
 
-        # Append secondary chapter prompt details if provided.
-        if args.chapter_prompt_file:
-            try:
-                chapter_prompt_path = args.chapter_prompt_file
-                # If not an absolute path, join with the current directory.
-                if not os.path.isabs(chapter_prompt_path):
-                    chapter_prompt_path = os.path.join(cur_dir, chapter_prompt_path)
-                secondary_chapter_prompt = load_prompt(chapter_prompt_path)
-                chapter_prompt_text += "\n" + secondary_chapter_prompt
-                logger.debug(
-                    "Appended secondary chapter prompt: %s", secondary_chapter_prompt
-                )
-            except Exception as e:
-                logger.warning("Could not load chapter prompt file: %s", e)
+        run_book_pipeline(
+            topic, chapter_count, args, toc_prompt_text, chapter_prompt_text
+        )
 
-        epub_filename = f"{topic}.epub"
-        book_title = f"Book on {topic}"
-
-        # Use a temporary directory for Markdown files.
-        with tempfile.TemporaryDirectory() as temp_dir:
-            generate_book_pipeline(
-                topic=topic,
-                chapter_count=chapter_count,  # Chapter count remains a string.
-                directory=temp_dir,
-                sub_topics=args.subtopics_list,  # Subtopics remain as a string.
-                chapter_prompt_text=chapter_prompt_text,
-                toc_prompt_text=toc_prompt_text,
-            )
-            create_epub_from_md(epub_filename, book_title, directory=temp_dir)
-
-        logger.info("Temporary files cleaned up. EPUB saved as '%s'.", epub_filename)
     except Exception as e:
         logger.error("Error: %s", e)
 
