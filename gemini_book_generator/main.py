@@ -40,6 +40,11 @@ def parse_cli_args():
         action="store_true",
         help="Enable debug mode with verbose logging.",
     )
+    parser.add_argument(
+        "--list-models",
+        action="store_true",
+        help="List available Gemini models and exit.",
+    )
     args, _ = parser.parse_known_args()
     return args
 
@@ -59,6 +64,16 @@ def main():
 
         # Parse CLI args early so that --help is processed before any interactive input.
         args = parse_cli_args()
+
+        # New: If --list-models flag provided, list models and exit.
+        if args.list_models:
+            from gemini_book_generator.gemini_llm import GeminiLLM
+
+            models = GeminiLLM.list_models()
+            print("Available Gemini models:")
+            for model in models:
+                print(f"- {model}")
+            return
 
         # Use common logger with debug flag if needed.
         if args.debug:

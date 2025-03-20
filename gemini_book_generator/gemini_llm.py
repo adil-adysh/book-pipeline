@@ -77,3 +77,16 @@ class GeminiLLM(LLM):
                     raise RuntimeError(f"Failed after {max_retries} attempts: {str(e)}")
                 time.sleep(2**attempt)
         raise RuntimeError("Unexpected error in _call method")
+
+    @classmethod
+    def list_models(cls) -> List[str]:
+        """List available Gemini model names."""
+        try:
+            client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+            models_pager = client.models.list()
+            model_names = [model.name for model in models_pager]
+            logger.info("Available Gemini models: %s", model_names)
+            return model_names
+        except Exception as e:
+            logger.error("Failed to list gemini models: %s", e)
+            return []
