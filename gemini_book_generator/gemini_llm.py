@@ -132,9 +132,10 @@ class GeminiLLM(LLM):
             client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
             models_pager = client.models.list()
             model_names = [
-                model.name for model in models_pager if model.name is not None
+                model.name.split("/", 2)[1]
+                for model in models_pager
+                if model.name is not None
             ]
-            logger.info("Available Gemini models: %s", model_names)
             return model_names
         except Exception as e:
             logger.error("Failed to list gemini models: %s", e)
