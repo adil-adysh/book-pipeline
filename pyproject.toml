@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "gemini-book-generator"
 version = "0.1.0"
-description = "A LangChain pipeline using the Google Gen AI SDK to generate accessible book content with Golang examples for visually impaired users."
+description = "An automated tool to generate well-structured books effortlessly using LangChain and Google Gen AI SDK."
 authors = ["Your Name <your.email@example.com>"]
 
 [tool.poetry.dependencies]
