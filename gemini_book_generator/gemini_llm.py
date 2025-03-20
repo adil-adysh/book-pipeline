@@ -1,14 +1,12 @@
 import os
 import time
 import json  # added for model config loading
-import logging  # added for logging
 from google import genai
 from langchain.llms.base import LLM
 from typing import List, Any, Optional
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from gemini_book_generator.common_logger import (
+    logger,
+)  # replaced local logger configuration
 
 # Retrieve your API key from environment variable
 gemini_api_key = os.getenv("GEMINI_API_KEY")
