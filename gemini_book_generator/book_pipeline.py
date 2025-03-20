@@ -1,7 +1,6 @@
 import os
-from langchain.chains import LLMChain
+import json
 from langchain_core.prompts import PromptTemplate
-from langchain.output_parsers import PydanticOutputParser
 from pydantic import BaseModel
 from typing import List
 from gemini_llm import GeminiLLM
@@ -15,10 +14,6 @@ class ChapterModel(BaseModel):
 
 class ToC(BaseModel):
     chapters: List[ChapterModel]
-
-
-# --- Output Parser for Structured ToC ---
-toc_parser = PydanticOutputParser(pydantic_object=ToC)
 
 
 def generate_book_pipeline(
@@ -40,14 +35,36 @@ def generate_book_pipeline(
         input_variables=["topic", "chapterCount", "subTopics"],
         template=toc_prompt_text,
     )
-    toc_chain = LLMChain(llm=gemini_llm, prompt=toc_template, output_parser=toc_parser)
-    toc_data = toc_chain.run(
+    # Chain the prompt and the LLM using the new RunnableSequence style.
+    toc_chain = toc_template | gemini_llm
+
+    # Generate ToC using the new invoke() approach
+    toc_raw = toc_chain.invoke(
         {
             "topic": topic,
             "chapterCount": chapter_count,
             "subTopics": sub_topics,
         }
     )
+
+    # Debugging: Print raw ToC output
+    print("Raw ToC output:", toc_raw)
+
+    # Process the returned text: remove code block markers and parse JSON.
+    toc_text = toc_raw
+    if toc_text.startswith("```json"):
+        toc_text = toc_text.replace("```json", "", 1)
+    if toc_text.endswith("```"):
+        toc_text = toc_text.rsplit("```", 1)[0]
+    toc_text = toc_text.strip()
+
+    try:
+        toc_dict = json.loads(toc_text)
+        toc_data = ToC(**toc_dict)
+    except Exception as e:
+        print(f"Error parsing ToC data: {e}")
+        return
+
     print("Generated structured ToC:")
     print(toc_data)
 
@@ -61,14 +78,24 @@ def generate_book_pipeline(
 
     # ----- Step 2: Generate Detailed Content for Each Chapter -----
     chapter_template = PromptTemplate(
-        input_variables=["chapter"], template=chapter_prompt_text
+        input_variables=["chapter"],
+        template=chapter_prompt_text,
     )
-    chapter_chain = LLMChain(llm=gemini_llm, prompt=chapter_template)
+    chapter_chain = chapter_template | gemini_llm
 
     for chapter in toc_data.chapters:
         chapter_heading = f"{chapter.number}. {chapter.title}"
         print(f"\nGenerating content for chapter: {chapter_heading}")
-        chapter_content = chapter_chain.run(chapter_heading)
+
+        chapter_raw = chapter_chain.invoke({"chapter": chapter_heading})
+        print(f"Raw content for {chapter_heading}:", chapter_raw)
+
+        if isinstance(chapter_raw, dict) and "text" in chapter_raw:
+            chapter_content = chapter_raw["text"]
+        else:
+            print(f"Unexpected chapter format for {chapter_heading}: {chapter_raw}")
+            continue
+
         safe_chapter_number = chapter.number.replace(".", "_")
         markdown_filename = f"chapter_{safe_chapter_number}.md"
         chapter_md_path = os.path.join(directory, markdown_filename)

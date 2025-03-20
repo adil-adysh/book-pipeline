@@ -1,7 +1,7 @@
 import os
 import tempfile
 import argparse
-import logging  # added logging
+import logging
 
 from helpers import load_prompt, get_prompt_file_path
 from epub_generator import create_epub_from_md
