@@ -90,8 +90,11 @@ def generate_book_pipeline(
         chapter_raw = chapter_chain.invoke({"chapter": chapter_heading})
         print(f"Raw content for {chapter_heading}:", chapter_raw)
 
+        # Check if chapter_raw is a dict with 'text', otherwise treat it as a string.
         if isinstance(chapter_raw, dict) and "text" in chapter_raw:
             chapter_content = chapter_raw["text"]
+        elif isinstance(chapter_raw, str):
+            chapter_content = chapter_raw
         else:
             print(f"Unexpected chapter format for {chapter_heading}: {chapter_raw}")
             continue
