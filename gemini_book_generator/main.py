@@ -4,7 +4,7 @@ import argparse
 from common_logger import logger
 from helpers import load_prompt, get_prompt_file_path
 from epub_generator import create_epub_from_md
-from book_pipeline import generate_book_pipeline
+from book_graph import run_book_graph
 
 
 def parse_cli_args():
@@ -89,23 +89,21 @@ def get_combined_prompts(args, cur_dir):
     return toc_prompt_text, chapter_prompt_text
 
 
-def run_book_pipeline(topic, chapter_count, args, toc_prompt_text, chapter_prompt_text):
-    """Runs the book generation pipeline given the parameters."""
+def run_book_graph_main(topic, chapter_count, args, toc_prompt_text, chapter_prompt_text):
+    """Runs the LangGraph book generation pipeline given the parameters."""
+    output_dir = tempfile.mkdtemp()
+    run_book_graph(
+        topic=topic,
+        chapter_count=chapter_count,
+        output_dir=output_dir,
+        sub_topics=args.subtopics_list,
+        chapter_prompt_text=chapter_prompt_text,
+        toc_prompt_text=toc_prompt_text,
+    )
     epub_filename = f"{topic}.epub"
     book_title = f"Book on {topic}"
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        generate_book_pipeline(
-            topic=topic,
-            chapter_count=chapter_count,  # Chapter count remains a string.
-            directory=temp_dir,
-            sub_topics=args.subtopics_list,
-            chapter_prompt_text=chapter_prompt_text,
-            toc_prompt_text=toc_prompt_text,
-        )
-        create_epub_from_md(epub_filename, book_title, directory=temp_dir)
-
-    logger.info("Temporary files cleaned up. EPUB saved as '%s'.", epub_filename)
+    create_epub_from_md(epub_filename, book_title, directory=output_dir)
+    logger.info("EPUB saved as '%s'.", epub_filename)
 
 
 def main():
@@ -143,7 +141,7 @@ def main():
         logger.debug("Initial ToC prompt text: %s", toc_prompt_text)
         logger.debug("Initial chapter prompt text: %s", chapter_prompt_text)
 
-        run_book_pipeline(
+        run_book_graph_main(
             topic, chapter_count, args, toc_prompt_text, chapter_prompt_text
         )
 

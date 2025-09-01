@@ -1,4 +1,3 @@
-
 # Gemini Book Generator  
 
 **Gemini Book Generator** is an automated tool designed to help you create well-structured books effortlessly. Simply provide a topic, and the tool organizes the content, generates chapters, and saves the final book in an easy-to-read format. You can also customize the content to have more control over the output.  
@@ -22,6 +21,7 @@ Before using the tool, ensure you have the following installed:
 - **Poetry** (for dependency management)  
 - **Mypy** (for type checking)  
 - **A valid API key** – Required to generate content ([Get your API key here](https://aistudio.google.com/app/apikey))  
+- **LangGraph** (installed automatically via Poetry)  
 
 ---
 
@@ -40,19 +40,13 @@ Before using the tool, ensure you have the following installed:
    pip install poetry
    ```  
 
-3. **Install Mypy globally:**  
-
-   ```bash
-   pip install mypy
-   ```  
-
-4. **Install dependencies using Poetry:**  
+3. **Install dependencies using Poetry:**  
 
    ```bash
    poetry install
    ```  
 
-5. **Activate the virtual environment:**  
+4. **Activate the virtual environment:**  
 
    ```bash
    poetry shell
@@ -65,17 +59,14 @@ Before using the tool, ensure you have the following installed:
 1. **Set up the API key:**  
 
    ```bash
-   # Linux/macOS
-   export GEMINI_API_KEY=your_api_key
-
-   # Windows (Command Prompt)
-   set GEMINI_API_KEY=your_api_key
+   # Windows PowerShell
+   $env:GEMINI_API_KEY="your_api_key"
    ```  
 
-2. **Run the book generator:**  
+2. **Run the book generator (LangGraph pipeline):**  
 
    ```bash
-   poetry run python gemini_book_generator/main.py
+   poetry run python gemini_book_generator/book_graph.py --topic "Your Topic" --chapter-count 5 --output-dir "output" --chapter-prompt-file gemini_book_generator/prompts/chapter_prompt.txt --toc-prompt-file gemini_book_generator/prompts/toc_prompt.txt
    ```  
 
 3. **Follow the prompts:**  
@@ -90,7 +81,7 @@ Before using the tool, ensure you have the following installed:
 To see all available options, run:  
 
 ```bash
-poetry run python gemini_book_generator/main.py --help
+poetry run python gemini_book_generator/book_graph.py --help
 ```  
 
 ---
@@ -100,7 +91,7 @@ poetry run python gemini_book_generator/main.py --help
 You can provide your own structure by using custom prompt files and subtopic lists:  
 
 ```bash
-poetry run python gemini_book_generator/main.py --toc-prompt-file path/to/toc_prompt.txt --chapter-prompt-file path/to/chapter_prompt.txt --subtopics-list "subtopic1,subtopic2"
+poetry run python gemini_book_generator/book_graph.py --topic "AI" --chapter-count 5 --output-dir "output" --chapter-prompt-file path/to/chapter_prompt.txt --toc-prompt-file path/to/toc_prompt.txt --subtopics "subtopic1,subtopic2"
 ```  
 
 ---
@@ -138,3 +129,7 @@ This project is licensed under the **MIT License**. See the [LICENSE](./LICENSE)
 ### Contributing  
 
 Contributions are welcome! If you’d like to contribute, please open an issue or submit a pull request.  
+
+---
+
+**Note:** The legacy pipeline in `book_pipeline.py` is deprecated. Please use `book_graph.py` for all new workflows.
