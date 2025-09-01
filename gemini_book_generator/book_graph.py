@@ -59,6 +59,7 @@ def write_toc_node(state):
 # --- Node: Pause for ToC review ---
 def review_toc_node(state):
     input(f"Review and edit the generated Table of Contents in '{state.toc_json_path}' (located in 'generated-prompts'). Press Enter to continue...")
+    # Always re-read the file after user edit
     with open(state.toc_json_path, "r", encoding="utf-8") as f:
         state.toc_dict = json.load(f)
     return state
@@ -135,7 +136,8 @@ def write_prompts_node(state):
 
 # --- Node: Pause for prompt review ---
 def review_prompts_node(state):
-    input("Review and edit the generated section prompt templates in 'generated-prompts/'. Press Enter to continue...")
+    input("Review and edit the generated section and chapter prompt templates in 'generated-prompts/'. Press Enter to continue...")
+    # No direct state update needed here, as prompts are re-read in generate_content_node
     return state
 
 # --- Node: Generate content for all sections ---
