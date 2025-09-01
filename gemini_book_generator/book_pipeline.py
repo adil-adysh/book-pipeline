@@ -68,28 +68,48 @@ def generate_book_pipeline(
     print("Generated structured ToC:")
     print(toc_data)
 
-    # Save the structured ToC to a Markdown file.
-    toc_md_path = os.path.join(directory, "book_index.md")
-    with open(toc_md_path, "w", encoding="utf-8") as f:
-        f.write(f"# Table of Contents for {topic}\n\n")
-        for chapter in toc_data.chapters:
-            f.write(f"{chapter.number}. {chapter.title}\n")
-    print(f"Saved {toc_md_path}")
-
-    # ----- Step 2: Generate Detailed Content for Each Chapter -----
-    chapter_template = PromptTemplate(
-        input_variables=["chapter"],
-        template=chapter_prompt_text,
+    # Save the actual generated ToC (JSON) to prompts/generated/book_index.json
+    generated_prompts_dir = os.path.join(
+        "gemini_book_generator", "prompts", "generated"
     )
-    chapter_chain = chapter_template | gemini_llm
+    os.makedirs(generated_prompts_dir, exist_ok=True)
+    toc_json_path = os.path.join(generated_prompts_dir, "book_index.json")
+    with open(toc_json_path, "w", encoding="utf-8") as f:
+        json.dump(toc_dict, f, indent=2)
+    print(f"Saved ToC JSON to {toc_json_path}")
 
+    # Pause for user review/edit of ToC JSON
+    input(
+        "Review and edit the generated Table of Contents in 'prompts/generated/book_index.json'. Press Enter to continue..."
+    )
+
+    # Validate and load ToC after user review
+    try:
+        with open(toc_json_path, "r", encoding="utf-8") as f:
+            toc_dict = json.load(f)
+        toc_data = ToC(**toc_dict)
+        print("Validated ToC. Proceeding with chapter generation.")
+    except Exception as e:
+        print(f"Error validating ToC: {e}")
+        return
+
+    # ----- Step 2: Generate Detailed Content for Each Chapter (from updated ToC) -----
     for chapter in toc_data.chapters:
+        safe_chapter_number = chapter.number.replace(".", "_")
+        prompt_filename = f"chapter_{safe_chapter_number}_prompt.txt"
+        prompt_path = os.path.join(generated_prompts_dir, prompt_filename)
+        # Read the (possibly edited) prompt template for this chapter
+        with open(prompt_path, "r", encoding="utf-8") as pf:
+            chapter_prompt = pf.read()
+        chapter_template = PromptTemplate(
+            input_variables=["chapter"],
+            template=chapter_prompt,
+        )
+        chapter_chain = chapter_template | gemini_llm
         chapter_heading = f"{chapter.number}. {chapter.title}"
         print(f"\nGenerating content for chapter: {chapter_heading}")
-
         chapter_raw = chapter_chain.invoke({"chapter": chapter_heading})
         print(f"Raw content for {chapter_heading}:", chapter_raw)
-
         # Check if chapter_raw is a dict with 'text', otherwise treat it as a string.
         if isinstance(chapter_raw, dict) and "text" in chapter_raw:
             chapter_content = chapter_raw["text"]
@@ -98,8 +118,6 @@ def generate_book_pipeline(
         else:
             print(f"Unexpected chapter format for {chapter_heading}: {chapter_raw}")
             continue
-
-        safe_chapter_number = chapter.number.replace(".", "_")
         markdown_filename = f"chapter_{safe_chapter_number}.md"
         chapter_md_path = os.path.join(directory, markdown_filename)
         with open(chapter_md_path, "w", encoding="utf-8") as f:
