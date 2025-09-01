@@ -7,13 +7,19 @@ from gemini_llm import GeminiLLM
 
 
 # --- Pydantic Models for ToC ---
-class ChapterModel(BaseModel):
+class SectionModel(BaseModel):
     number: str
     title: str
+    subsections: List['SectionModel'] = []
 
+    class Config:
+        arbitrary_types_allowed = True
+        orm_mode = True
+
+SectionModel.update_forward_refs()
 
 class ToC(BaseModel):
-    chapters: List[ChapterModel]
+    chapters: List[SectionModel]
 
 
 def generate_book_pipeline(
@@ -69,9 +75,7 @@ def generate_book_pipeline(
     print(toc_data)
 
     # Save the actual generated ToC (JSON) to prompts/generated/book_index.json
-    generated_prompts_dir = os.path.join(
-        "gemini_book_generator", "prompts", "generated"
-    )
+    generated_prompts_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "prompts", "generated")
     os.makedirs(generated_prompts_dir, exist_ok=True)
     toc_json_path = os.path.join(generated_prompts_dir, "book_index.json")
     with open(toc_json_path, "w", encoding="utf-8") as f:
@@ -79,9 +83,7 @@ def generate_book_pipeline(
     print(f"Saved ToC JSON to {toc_json_path}")
 
     # Pause for user review/edit of ToC JSON
-    input(
-        "Review and edit the generated Table of Contents in 'prompts/generated/book_index.json'. Press Enter to continue..."
-    )
+    input("Review and edit the generated Table of Contents in 'prompts/generated/book_index.json'. Press Enter to continue...")
 
     # Validate and load ToC after user review
     try:
@@ -93,34 +95,70 @@ def generate_book_pipeline(
         print(f"Error validating ToC: {e}")
         return
 
-    # ----- Step 2: Generate Detailed Content for Each Chapter (from updated ToC) -----
-    for chapter in toc_data.chapters:
-        safe_chapter_number = chapter.number.replace(".", "_")
-        prompt_filename = f"chapter_{safe_chapter_number}_prompt.txt"
+    # ----- Step 1b: Generate per-section prompt template files -----
+    chapter_prompt_template = chapter_prompt_text.strip()
+    print(f"Generating prompt templates for all sections/subsections in {generated_prompts_dir}")
+    all_prompt_paths = traverse_sections(toc_data.chapters, generated_prompts_dir, chapter_prompt_template)
+    print(f"All section prompt templates written. Review/edit them before continuing.")
+    input("Review and edit the generated section prompt templates in 'prompts/generated/'. Press Enter to continue...")
+
+    # ----- Step 2: Generate Detailed Content for Each Section (from updated ToC) -----
+    def generate_content_for_sections(sections, generated_prompts_dir, gemini_llm, directory):
+        for section in sections:
+            safe_section_number = section.number.replace('.', '_')
+            prompt_filename = f"section_{safe_section_number}_prompt.txt"
+            prompt_path = os.path.join(generated_prompts_dir, prompt_filename)
+            # Read the (possibly edited/custom) prompt template for this section
+            with open(prompt_path, "r", encoding="utf-8") as pf:
+                section_prompt = pf.read()
+            section_template = PromptTemplate(
+                input_variables=["chapter"],
+                template=section_prompt,
+            )
+            section_chain = section_template | gemini_llm
+            section_heading = f"{section.number}. {section.title}"
+            print(f"\nGenerating content for section: {section_heading}")
+            section_raw = section_chain.invoke({"chapter": section_heading})
+            print(f"Raw content for {section_heading}:", section_raw)
+            if isinstance(section_raw, dict) and "text" in section_raw:
+                section_content = section_raw["text"]
+            elif isinstance(section_raw, str):
+                section_content = section_raw
+            else:
+                print(f"Unexpected section format for {section_heading}: {section_raw}")
+                continue
+            markdown_filename = f"section_{safe_section_number}.md"
+            section_md_path = os.path.join(directory, markdown_filename)
+            with open(section_md_path, "w", encoding="utf-8") as f:
+                f.write(f"# {section_heading}\n\n")
+                f.write(section_content)
+            print(f"Saved {section_md_path}")
+            # Recursively process subsections
+            if hasattr(section, 'subsections') and section.subsections:
+                generate_content_for_sections(section.subsections, generated_prompts_dir, gemini_llm, directory)
+
+    generate_content_for_sections(toc_data.chapters, generated_prompts_dir, gemini_llm, directory)
+
+
+def traverse_sections(sections, generated_prompts_dir, chapter_prompt_template):
+    prompt_paths = []
+    for section in sections:
+        safe_section_number = section.number.replace('.', '_')
+        prompt_filename = f"section_{safe_section_number}_prompt.txt"
         prompt_path = os.path.join(generated_prompts_dir, prompt_filename)
-        # Read the (possibly edited) prompt template for this chapter
-        with open(prompt_path, "r", encoding="utf-8") as pf:
-            chapter_prompt = pf.read()
-        chapter_template = PromptTemplate(
-            input_variables=["chapter"],
-            template=chapter_prompt,
-        )
-        chapter_chain = chapter_template | gemini_llm
-        chapter_heading = f"{chapter.number}. {chapter.title}"
-        print(f"\nGenerating content for chapter: {chapter_heading}")
-        chapter_raw = chapter_chain.invoke({"chapter": chapter_heading})
-        print(f"Raw content for {chapter_heading}:", chapter_raw)
-        # Check if chapter_raw is a dict with 'text', otherwise treat it as a string.
-        if isinstance(chapter_raw, dict) and "text" in chapter_raw:
-            chapter_content = chapter_raw["text"]
-        elif isinstance(chapter_raw, str):
-            chapter_content = chapter_raw
-        else:
-            print(f"Unexpected chapter format for {chapter_heading}: {chapter_raw}")
-            continue
-        markdown_filename = f"chapter_{safe_chapter_number}.md"
-        chapter_md_path = os.path.join(directory, markdown_filename)
-        with open(chapter_md_path, "w", encoding="utf-8") as f:
-            f.write(f"# {chapter_heading}\n\n")
-            f.write(chapter_content)
-        print(f"Saved {chapter_md_path}")
+        # Build a summary of immediate subsections
+        subsection_summary = ""
+        if hasattr(section, 'subsections') and section.subsections:
+            subsection_summary = "\nSubsections:\n" + "\n".join([
+                f"- {sub.number}: {sub.title}" for sub in section.subsections
+            ]) + "\n"
+        # Always write (or overwrite) the prompt template for review
+        with open(prompt_path, "w", encoding="utf-8") as pf:
+            pf.write(f"# Prompt template for {section.number}. {section.title}\n\n")
+            pf.write(subsection_summary)
+            pf.write(chapter_prompt_template.replace("{chapter}", f"{section.number}. {section.title}"))
+        prompt_paths.append(prompt_path)
+        # Recursively process subsections
+        if hasattr(section, 'subsections') and section.subsections:
+            prompt_paths.extend(traverse_sections(section.subsections, generated_prompts_dir, chapter_prompt_template))
+    return prompt_paths
