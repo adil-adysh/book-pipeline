@@ -1,4 +1,18 @@
-You are an experienced educator known for creating accessible learning materials.  
-Write a detailed chapter on the topic: {chapter}.  
-Ensure that the content is clear, descriptive, and easy to understand for a diverse audience.  
-Provide comprehensive explanations and practical examples to illustrate key concepts.
+# Chapter Prompt Template
+
+Book Title: {book_title}
+Book Summary: {book_summary}
+Subtopics: {subtopics}
+Chapter Title: {chapter_title}
+Chapter Number: {chapter_number}
+Previous Chapter Summary: {previous_chapter_summary}
+
+Write a detailed and engaging chapter for the book based on the above context.
+
+Include:
+- Clear explanations
+- Relevant examples
+- Section summaries if present
+- Smooth transitions to the next chapter
+
+Format the output in Markdown.

@@ -35,7 +35,7 @@ def get_sorted_chapter_files(directory="."):
     files = [
         f
         for f in os.listdir(directory)
-        if f.startswith("chapter_") and f.endswith(".md")
+        if (f.startswith("chapter_") or f.startswith("section_")) and f.endswith(".md")
     ]
     files.sort(key=extract_chapter_key)
     return files

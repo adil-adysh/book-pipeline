@@ -89,14 +89,13 @@ def get_combined_prompts(args, cur_dir):
     return toc_prompt_text, chapter_prompt_text
 
 
-def run_book_graph_main(topic, chapter_count, args, toc_prompt_text, chapter_prompt_text):
+def run_book_graph_main(topic, chapter_count, toc_prompt_text, chapter_prompt_text):
     """Runs the LangGraph book generation pipeline given the parameters."""
     output_dir = tempfile.mkdtemp()
     run_book_graph(
         topic=topic,
         chapter_count=chapter_count,
         output_dir=output_dir,
-        sub_topics=args.subtopics_list,
         chapter_prompt_text=chapter_prompt_text,
         toc_prompt_text=toc_prompt_text,
     )
@@ -142,7 +141,7 @@ def main():
         logger.debug("Initial chapter prompt text: %s", chapter_prompt_text)
 
         run_book_graph_main(
-            topic, chapter_count, args, toc_prompt_text, chapter_prompt_text
+            topic, chapter_count, toc_prompt_text, chapter_prompt_text
         )
 
     except Exception as e:

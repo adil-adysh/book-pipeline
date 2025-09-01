@@ -1,7 +1,8 @@
 import os
 import markdown
+import json
 from ebooklib import epub
-from helpers import get_sorted_chapter_files
+from .helpers import get_sorted_chapter_files
 
 
 def create_style_sheet(book):
@@ -60,11 +61,66 @@ def process_chapters(book, directory, nav_css):
 
 def build_toc(book, intro_item, chapter_items):
     """Build the table of contents (ToC) for the book."""
+    # Try to load hierarchical ToC from book_index.json
+    # Use the directory where markdown and JSON files are located
+    import inspect
+    frame = inspect.currentframe()
+    directory = None
+    while frame:
+        if 'directory' in frame.f_locals:
+            directory = frame.f_locals['directory']
+            break
+        frame = frame.f_back
+    if directory is None:
+        directory = '.'
+    toc_json_path = os.path.join(directory, "book_index.json")
+    if not os.path.exists(toc_json_path):
+        # Fallback to flat ToC
+        toc_entries = []
+        if intro_item is not None:
+            toc_entries.append(epub.Link(intro_item.file_name, "Introduction", "intro"))
+        if chapter_items:
+            toc_entries.append((epub.Section("Chapters"), tuple(chapter_items)))
+        book.toc = tuple(toc_entries)
+        return
+
+    with open(toc_json_path, "r", encoding="utf-8") as f:
+        toc_dict = json.load(f)
+
+    def find_md_item(section_number):
+        # Zero-pad section number for filename matching
+        parts = section_number.split('.')
+        padded = '_'.join([str(p).zfill(3) for p in parts])
+        filename = f"section_{padded}.md"
+        xhtml = filename.replace('.md', '.xhtml')
+        for item in chapter_items:
+            if item.file_name == xhtml:
+                return item
+        return None
+
+    def build_section(section):
+        item = find_md_item(section["number"])
+        children = []
+        if "subsections" in section and section["subsections"]:
+            for sub in section["subsections"]:
+                child = build_section(sub)
+                if child:
+                    children.append(child)
+        if item:
+            if children:
+                return (epub.Section(f"{section['number']}. {section['title']}"), tuple(children + [item]))
+            else:
+                return item
+        return None
+
     toc_entries = []
     if intro_item is not None:
         toc_entries.append(epub.Link(intro_item.file_name, "Introduction", "intro"))
-    if chapter_items:
-        toc_entries.append((epub.Section("Chapters"), tuple(chapter_items)))
+    if "chapters" in toc_dict:
+        for chapter in toc_dict["chapters"]:
+            entry = build_section(chapter)
+            if entry:
+                toc_entries.append(entry)
     book.toc = tuple(toc_entries)
 
 
