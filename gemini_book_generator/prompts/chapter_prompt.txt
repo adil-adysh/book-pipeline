@@ -1,18 +1,17 @@
 # Chapter Prompt Template
 
+
 Book Title: {book_title}
 Book Summary: {book_summary}
-Subtopics: {subtopics}
 Chapter Title: {chapter_title}
 Chapter Number: {chapter_number}
 Previous Chapter Summary: {previous_chapter_summary}
+Desired Chapter Length: {chapter_length}
 
 Write a detailed and engaging chapter for the book based on the above context.
 
-Include:
-- Clear explanations
-- Relevant examples
-- Section summaries if present
-- Smooth transitions to the next chapter
+Instructions:
+- The chapter should be {chapter_length} in length. If a word count is specified, aim for that target.
+- Include clear explanations, relevant examples, section summaries if present, and smooth transitions to the next chapter.
 
 Format the output in Markdown.

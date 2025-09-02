@@ -2,7 +2,7 @@ import os
 import markdown
 import json
 from ebooklib import epub
-from .helpers import get_sorted_chapter_files
+from helpers import get_sorted_chapter_files
 
 
 def create_style_sheet(book):
@@ -100,17 +100,23 @@ def build_toc(book, intro_item, chapter_items):
 
     def build_section(section):
         item = find_md_item(section["number"])
-        children = []
-        if "subsections" in section and section["subsections"]:
-            for sub in section["subsections"]:
-                child = build_section(sub)
-                if child:
-                    children.append(child)
-        if item:
-            if children:
-                return (epub.Section(f"{section['number']}. {section['title']}"), tuple(children + [item]))
-            else:
-                return item
+        children = get_section_children(section)
+        display_title = get_display_title(section)
+        return assemble_section(item, children, display_title, section["number"])
+
+    def get_section_children(section):
+        return [child for child in (build_section(sub) for sub in section.get("subsections", [])) if child]
+
+    def get_display_title(section):
+        return f"{section['number']}. {section['title']}"
+
+    def assemble_section(item, children, display_title, number):
+        if item and children:
+            return (epub.Section(display_title), tuple(children + [item]))
+        if item and not children:
+            return epub.Link(item.file_name, display_title, f"section_{number.replace('.', '_')}")
+        if not item and children:
+            return (epub.Section(display_title), tuple(children))
         return None
 
     toc_entries = []
