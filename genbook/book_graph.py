@@ -27,13 +27,16 @@ def build_book_graph():
 def run_book_graph(topic, chapter_count, output_dir, chapter_prompt_text, toc_prompt_text, chapter_length="medium", section_length="medium", toc_length="medium"):
     import os
     repo_root = os.path.dirname(os.path.dirname(__file__))
+    # Derive project_root from output_dir (output_dir is expected to be <project_root>/generated-prompts)
+    project_root = os.path.dirname(output_dir)
     state = {
         "topic": topic,
     "chapter_count": int(chapter_count),
         "output_dir": output_dir,
         "chapter_prompt_text": chapter_prompt_text,
         "toc_prompt_text": toc_prompt_text,
-        "repo_root": repo_root,
+    "repo_root": repo_root,
+    "project_root": project_root,
         "chapter_length": chapter_length,
         "section_length": section_length,
         "toc_length": toc_length,

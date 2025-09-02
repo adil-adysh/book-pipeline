@@ -3,7 +3,10 @@ from typing import List
 
 def write_prompts_node(state):
     from genbook.graph_state import StateModel
-    generated_prompts_dir = os.path.join(state.repo_root, "generated-prompts")
+    # Use the pipeline's output_dir as the generated prompts directory
+    generated_prompts_dir = state.output_dir if hasattr(state, "output_dir") else os.path.join(
+        state.repo_root, "generated-prompts"
+    )
     os.makedirs(generated_prompts_dir, exist_ok=True)
     section_prompt_path = os.path.join(state.repo_root, "genbook", "prompts", "section_prompt.txt")
     def traverse_sections(sections, book_title, chapter_title, chapter_summary, section_prompt_template, section_length, previous_titles=None, seen_sections=None):

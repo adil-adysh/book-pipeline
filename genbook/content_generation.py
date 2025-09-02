@@ -43,6 +43,11 @@ def generate_content_node(state):
                 continue
             markdown_filename = f"section_{safe_section_number}.md"
             section_md_path = os.path.join(directory, markdown_filename)
+            # Also write to project-level chapters directory so the project contains generated markdown
+            project_root = getattr(state, "project_root", os.path.dirname(directory))
+            project_chapters_dir = os.path.join(project_root, "chapters")
+            os.makedirs(project_chapters_dir, exist_ok=True)
+            project_section_md_path = os.path.join(project_chapters_dir, markdown_filename)
             base_path = section_md_path
             suffix = 1
             while os.path.exists(section_md_path):
@@ -51,6 +56,10 @@ def generate_content_node(state):
             with open(section_md_path, "w", encoding="utf-8") as f:
                 f.write(f"# {section_heading}\n\n")
                 f.write(section_content)
+            # mirror to project chapters dir
+            with open(project_section_md_path, "w", encoding="utf-8") as f2:
+                f2.write(f"# {section_heading}\n\n")
+                f2.write(section_content)
             print(f"Saved {section_md_path}")
             if "subsections" in section and section["subsections"]:
                 traverse_content(
@@ -81,10 +90,19 @@ def generate_content_node(state):
         chapter_content = chapter_raw["text"] if isinstance(chapter_raw, dict) and "text" in chapter_raw else chapter_raw
         markdown_filename = f"chapter_{chapter_vars['chapter_number'].zfill(3)}.md" if chapter_vars["chapter_number"] else f"chapter_{chapter_vars['chapter_title'].replace(' ', '_')}.md"
         chapter_md_path = os.path.join(output_dir, markdown_filename)
+        # Also ensure project-level chapters directory
+        project_root = getattr(state, "project_root", os.path.dirname(output_dir))
+        project_chapters_dir = os.path.join(project_root, "chapters")
+        os.makedirs(project_chapters_dir, exist_ok=True)
+        project_chapter_md_path = os.path.join(project_chapters_dir, markdown_filename)
         with open(chapter_md_path, "w", encoding="utf-8") as f:
             f.write(f"# {chapter_vars['chapter_title']}\n\n")
             f.write(chapter_content)
-        print(f"Saved {chapter_md_path}")
+        # mirror to project chapters dir
+        with open(project_chapter_md_path, "w", encoding="utf-8") as f2:
+            f2.write(f"# {chapter_vars['chapter_title']}\n\n")
+            f2.write(chapter_content)
+        print(f"Saved {chapter_md_path} and {project_chapter_md_path}")
     gemini_llm = GeminiLLM(
         api_key=os.getenv("GEMINI_API_KEY"),
         model_name="gemini-2.0-flash",

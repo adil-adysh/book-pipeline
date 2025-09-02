@@ -39,9 +39,10 @@ def generate_toc_node(state):
     return state
 
 def write_toc_node(state):
-    generated_prompts_dir = os.path.join(state.repo_root, "generated-prompts")
-    os.makedirs(generated_prompts_dir, exist_ok=True)
-    toc_json_path = os.path.join(generated_prompts_dir, "book_index.json")
+    # Save book_index.json in the project root so it's colocated with the project
+    project_root = getattr(state, "project_root", None) or os.path.dirname(getattr(state, "output_dir", state.repo_root))
+    toc_json_path = os.path.join(project_root, "book_index.json")
+    os.makedirs(project_root, exist_ok=True)
     with open(toc_json_path, "w", encoding="utf-8") as f:
         json.dump(state.toc_dict, f, indent=2)
     state.toc_json_path = toc_json_path
