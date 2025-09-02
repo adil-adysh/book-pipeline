@@ -1,7 +1,8 @@
 [tool.poetry.scripts]
-gemini-book-generator = "gemini_book_generator.main:main"
+[tool.poetry.scripts]
+genbook = "genbook.__main__:main"
 [tool.poetry]
-name = "gemini-book-generator"
+name = "genbook"
 version = "0.1.0"
 description = "An automated tool to generate well-structured books effortlessly using LangChain and Google Gen AI SDK."
 authors = ["Your Name <your.email@example.com>"]

@@ -1,132 +1,147 @@
-# Gemini Book Generator  
+# GenBook
 
-**Gemini Book Generator** is an automated tool designed to help you create well-structured books effortlessly. Simply provide a topic, and the tool organizes the content, generates chapters, and saves the final book in an easy-to-read format. You can also customize the content to have more control over the output.  
+**GenBook** is an automated tool designed to help you create well-structured books effortlessly. Simply provide a topic, and the tool organizes the content, generates chapters, and saves the final book in an easy-to-read format. You can also customize the content to have more control over the output.  
+## Installation
 
----
 
-## Features  
+### Install via pip (recommended for CLI usage)
 
-- **Automated Book Generation** – Enter a topic, and the tool generates structured content.  
-- **Customizable Output** – Adjust prompts to modify the book’s structure.  
-- **Interactive Editing Mode** – Optionally refine and edit content before finalizing.  
-- **EPUB Format Support** – Saves the generated book as an EPUB file for easy reading.  
 
----
+```bash
+pip install .
 
-## Requirements  
+```
 
-Before using the tool, ensure you have the following installed:  
 
-- **Python 3.9 or later**  
-- **Poetry** (for dependency management)  
-- **Mypy** (for type checking)  
-- **A valid API key** – Required to generate content ([Get your API key here](https://aistudio.google.com/app/apikey))  
-- **LangGraph** (installed automatically via Poetry)  
+Or build and install from source:
 
----
+```bash
+git clone https://github.com/adil-adysh/book-pipeline.git
 
-## Installation  
+cd book-pipeline
 
-1. **Clone the repository:**  
+pip install .
+```
 
-   ```bash
-   git clone https://github.com/adil-adysh/book-pipeline.git
-   cd book-pipeline
-   ```  
 
-2. **Install Poetry** (if not installed):  
+### Development setup (Poetry)
 
-   ```bash
-   pip install poetry
-   ```  
 
-3. **Install dependencies using Poetry:**  
 
-   ```bash
-   poetry install
-   ```  
 
-4. **Activate the virtual environment:**  
 
-   ```bash
-   poetry shell
-   ```  
 
----
+```bash
+pip install poetry
+poetry install
 
-## Usage  
 
-1. **Set up the API key:**  
 
-   ```bash
-   # Windows PowerShell
+poetry shell
+
+```
+
+
+pip install .
+```
+
+
+
+Or build and install from source:
+
+
+
+
+```bash
+git clone https://github.com/adil-adysh/book-pipeline.git
+
+cd book-pipeline
+pip install .
+
+
+
+```
+
+
+
+### Development (Poetry)
+
+
+
+
+```bash
+pip install poetry
+
+
+poetry install
+
+
+poetry shell
+```
+
+
+
+
+
+## Usage
+
+
+1. **Set up the API key:**
+
+
+
+
+   ```pwsh
+
+
    $env:GEMINI_API_KEY="your_api_key"
-   ```  
 
-2. **Run the book generator (LangGraph pipeline):**  
 
-   ```bash
-   poetry run python gemini_book_generator/book_graph.py --topic "Your Topic" --chapter-count 5 --output-dir "output" --chapter-prompt-file gemini_book_generator/prompts/chapter_prompt.txt --toc-prompt-file gemini_book_generator/prompts/toc_prompt.txt
-   ```  
+   ```
 
-3. **Follow the prompts:**  
-   - Enter the book topic and specify the number of chapters.  
-   - Optionally, provide additional content customization.  
-   - The tool will generate and save the book.  
+2. **Run the book generator from the CLI:**
 
----
 
-## Command-Line Options  
+   ```pwsh
 
-To see all available options, run:  
+   genbook --topic "Your Topic" --chapter-count 5 --output-dir "output" --chapter-prompt-file genbook/prompts/chapter_prompt.txt --toc-prompt-file genbook/prompts/toc_prompt.txt
 
-```bash
-poetry run python gemini_book_generator/book_graph.py --help
-```  
+   ```
 
----
+3. **Follow the prompts:**
 
-## Customization  
+   - Enter the book topic and specify the number of chapters.
+   - Optionally, provide additional content customization.
 
-You can provide your own structure by using custom prompt files and subtopic lists:  
+   - The tool will generate and save the book.
 
-```bash
-poetry run python gemini_book_generator/book_graph.py --topic "AI" --chapter-count 5 --output-dir "output" --chapter-prompt-file path/to/chapter_prompt.txt --toc-prompt-file path/to/toc_prompt.txt --subtopics "subtopic1,subtopic2"
-```  
 
----
 
-## Code Quality & Type Checking  
+## Command-Line Options
 
-To check for type errors, run **Mypy**:  
 
-```bash
-mypy gemini_book_generator/
-```  
 
-If additional type definitions are needed, install them with:  
+To see all available options, run:
 
-```bash
-mypy --install-types
-```  
+```pwsh
 
----
+genbook --help
+```
 
-## Troubleshooting  
 
-- Ensure all dependencies are installed.  
-- Verify that the API key is set correctly.  
-- Check file paths when using custom settings.  
 
----
+## Customization
 
-## License  
 
-This project is licensed under the **MIT License**. See the [LICENSE](./LICENSE) file for details.  
+You can provide your own structure by using custom prompt files and subtopic lists:
 
----
 
-### Contributing  
+
+```pwsh
+genbook --topic "AI" --chapter-count 5 --output-dir "output" --chapter-prompt-file path/to/chapter_prompt.txt --toc-prompt-file path/to/toc_prompt.txt --subtopics "subtopic1,subtopic2"
+
+```
+
 
 Contributions are welcome! If you’d like to contribute, please open an issue or submit a pull request.  
 

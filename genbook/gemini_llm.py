@@ -7,7 +7,7 @@ from typing import List, Any, Optional
 from google import genai
 from langchain.llms.base import LLM
 
-from gemini_book_generator.common_logger import logger
+from genbook.common_logger import logger
 
 # Define default values
 DEFAULT_TEMPERATURE = 0.7

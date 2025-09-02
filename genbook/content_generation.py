@@ -1,10 +1,10 @@
 import os
 from langchain_core.prompts import PromptTemplate
-from gemini_llm import GeminiLLM
+from genbook.gemini_llm import GeminiLLM
 
 def generate_content_node(state):
     generated_prompts_dir = os.path.join(state.repo_root, "generated-prompts")
-    section_prompt_path = os.path.join(state.repo_root, "gemini_book_generator", "prompts", "section_prompt.txt")
+    section_prompt_path = os.path.join(state.repo_root, "genbook", "prompts", "section_prompt.txt")
     def get_chapter_prompt_path(chapter_number: str) -> str:
         safe_chapter_number = chapter_number.replace('.', '_')
         return os.path.join(generated_prompts_dir, f"chapter_{safe_chapter_number}_prompt.txt")
@@ -97,6 +97,7 @@ def generate_content_node(state):
         chapter_prompt_path = get_chapter_prompt_path(chapter_number)
         with open(chapter_prompt_path, "r", encoding="utf-8") as f:
             chapter_prompt_template = f.read()
+
         generate_chapter(
             chapter,
             gemini_llm,
@@ -107,9 +108,11 @@ def generate_content_node(state):
             previous_chapter_summary,
             state.chapter_length,
         )
+
         chapter_title = chapter["title"]
         chapter_summary = chapter.get("summary", "")
         previous_chapter_summary = chapter_summary
+
         traverse_content(
             [chapter],
             gemini_llm,

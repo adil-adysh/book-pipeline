@@ -1,7 +1,7 @@
 import os
 import tempfile
 import json
-from gemini_book_generator import epub_generator
+from genbook import epub_generator
 
 def test_epub_generation_minimal():
     # Setup temp directory

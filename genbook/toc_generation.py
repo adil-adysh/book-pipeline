@@ -1,7 +1,7 @@
 import os
 import json
 from langchain_core.prompts import PromptTemplate
-from gemini_llm import GeminiLLM
+from genbook.gemini_llm import GeminiLLM
 
 def generate_toc_node(state):
     gemini_llm = GeminiLLM(

@@ -2,10 +2,10 @@ import os
 from typing import List
 
 def write_prompts_node(state):
-    from gemini_book_generator.graph_state import StateModel
+    from genbook.graph_state import StateModel
     generated_prompts_dir = os.path.join(state.repo_root, "generated-prompts")
     os.makedirs(generated_prompts_dir, exist_ok=True)
-    section_prompt_path = os.path.join(state.repo_root, "gemini_book_generator", "prompts", "section_prompt.txt")
+    section_prompt_path = os.path.join(state.repo_root, "genbook", "prompts", "section_prompt.txt")
     def traverse_sections(sections, book_title, chapter_title, chapter_summary, section_prompt_template, section_length, previous_titles=None, seen_sections=None):
         if previous_titles is None:
             previous_titles = []
@@ -50,7 +50,7 @@ def write_prompts_node(state):
                 prompt_paths.extend(traverse_sections(section["subsections"], book_title, chapter_title, chapter_summary, section_prompt_template, section_length, prev_sections + [section["title"]], seen_sections))
         return prompt_paths
     chapter_prompt_path_template = os.path.join(generated_prompts_dir, "chapter_{chapter_number}_prompt.txt")
-    chapter_prompt_template_path = os.path.join(state.repo_root, "gemini_book_generator", "prompts", "chapter_prompt.txt")
+    chapter_prompt_template_path = os.path.join(state.repo_root, "genbook", "prompts", "chapter_prompt.txt")
     with open(chapter_prompt_template_path, "r", encoding="utf-8") as f:
         chapter_prompt_template = f.read()
     book_title = state.topic

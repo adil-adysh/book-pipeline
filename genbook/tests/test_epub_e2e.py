@@ -1,7 +1,7 @@
 import os
 import tempfile
 import json
-from gemini_book_generator import epub_generator
+from genbook import epub_generator
 
 def create_md_files_from_toc(toc, directory):
     """Recursively create .md files for all chapters and sections in the ToC."""

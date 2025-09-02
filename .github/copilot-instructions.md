@@ -1,11 +1,13 @@
 # Copilot Instructions for Gemini Book Generator
 
 ## Project Overview
-- **Gemini Book Generator** automates book creation using generative AI (Google Gemini API).
-- Main logic is in `gemini_book_generator/` with entrypoint `main.py`.
+## Project Overview
+- **GenBook** automates book creation using generative AI.
+- Main logic is in `genbook/` with entrypoint `main.py`.
 - Books are generated from a topic, organized into chapters, and exported as EPUB files.
-- Customization is supported via prompt files in `gemini_book_generator/prompts/`.
+- Customization is supported via prompt files in `genbook/prompts/`.
 
+## Architecture & Key Components
 ## Architecture & Key Components
 - `book_pipeline.py`: Orchestrates the book generation workflow.
 - `gemini_llm.py`: Handles communication with the Gemini API.
@@ -18,9 +20,14 @@
 ## Developer Workflows
 - **Install dependencies:** `poetry install`
 - **Activate environment:** `poetry shell`
-- **Run generator:** `poetry run python gemini_book_generator/main.py`
-- **Type checking:** `mypy gemini_book_generator/`
-- **Custom prompts:** Pass `--toc-prompt-file` and `--chapter-prompt-file` to use custom templates.
+-- **Run generator:** `poetry run python -m genbook.main`
+## Example: Custom Book Generation
+```pwsh
+$env:GEMINI_API_KEY="your_api_key"
+poetry run python -m genbook.main --toc-prompt-file genbook/prompts/toc_prompt.txt --chapter-prompt-file genbook/prompts/chapter_prompt.txt --subtopics-list "AI,Machine Learning"
+```
+- **Type checking:** `mypy genbook/`
+- **Custom prompts:** Pass `--toc-prompt-file` and `--chapter-prompt-file` to use custom templates (under `genbook/prompts/`).
 - **API Key:** Set `GEMINI_API_KEY` in your environment before running.
 
 ## Patterns & Conventions
@@ -39,7 +46,7 @@
 ## Example: Custom Book Generation
 ```pwsh
 $env:GEMINI_API_KEY="your_api_key"
-poetry run python gemini_book_generator/main.py --toc-prompt-file gemini_book_generator/prompts/toc_prompt.txt --chapter-prompt-file gemini_book_generator/prompts/chapter_prompt.txt --subtopics-list "AI,Machine Learning"
+poetry run python -m genbook.main --toc-prompt-file genbook/prompts/toc_prompt.txt --chapter-prompt-file genbook/prompts/chapter_prompt.txt --subtopics-list "AI,Machine Learning"
 ```
 
 ## Troubleshooting

@@ -1,17 +1,10 @@
-# Add import for argparse
-import argparse
-from gemini_book_generator.graph_state import StateModel
-from gemini_book_generator.toc_generation import generate_toc_node, write_toc_node, review_toc_node
-from gemini_book_generator.prompt_generation import write_prompts_node, review_prompts_node
-from gemini_book_generator.content_generation import generate_content_node
-from gemini_book_generator.project_manager import BookProject
+
+# Refactored: Use new modular pipeline
+from genbook.graph_state import StateModel
+from genbook.toc_generation import generate_toc_node, write_toc_node, review_toc_node
+from genbook.prompt_generation import write_prompts_node, review_prompts_node
+from genbook.content_generation import generate_content_node
 from langgraph.graph import StateGraph
-
-
-def parse_cli_args():
-    """Parse command-line arguments for optional inputs."""
-
-    # ...existing code...
 
 def build_book_graph():
     graph = StateGraph(StateModel)
@@ -31,14 +24,16 @@ def build_book_graph():
     graph.set_entry_point("generate_toc")
     return graph
 
-def run_book_graph(project: BookProject, chapter_prompt_text, toc_prompt_text, chapter_length="medium", section_length="medium", toc_length="medium"):
+def run_book_graph(topic, chapter_count, output_dir, chapter_prompt_text, toc_prompt_text, chapter_length="medium", section_length="medium", toc_length="medium"):
+    import os
+    repo_root = os.path.dirname(os.path.dirname(__file__))
     state = {
-        "topic": project.config.get("topic"),
-        "chapter_count": project.config.get("chapter_count"),
-        "output_dir": project.generated_dir,
+        "topic": topic,
+        "chapter_count": chapter_count,
+        "output_dir": output_dir,
         "chapter_prompt_text": chapter_prompt_text,
         "toc_prompt_text": toc_prompt_text,
-        "repo_root": project.project_root,
+        "repo_root": repo_root,
         "chapter_length": chapter_length,
         "section_length": section_length,
         "toc_length": toc_length,
@@ -47,38 +42,29 @@ def run_book_graph(project: BookProject, chapter_prompt_text, toc_prompt_text, c
     compiled_graph = graph.compile()
     compiled_graph.invoke(state)
 
-    # ...existing code...
-
-def main():
+if __name__ == "__main__":
+    import argparse
     parser = argparse.ArgumentParser(description="Run Gemini Book Generator with LangGraph")
-    parser.add_argument("--project-dir", required=True, help="Path to book project directory")
     parser.add_argument("--topic", required=True, help="Book topic")
     parser.add_argument("--chapter-count", required=True, help="Number of chapters")
+    parser.add_argument("--output-dir", required=True, help="Output directory for markdown files")
     parser.add_argument("--chapter-length", default="medium", help="Desired chapter length (short, medium, long, or word count)")
     parser.add_argument("--section-length", default="medium", help="Desired section length (short, medium, long, or word count)")
     parser.add_argument("--toc-length", default="medium", help="Desired ToC detail level (short, medium, long, or number of sections/levels)")
     parser.add_argument("--chapter-prompt-file", required=True, help="Path to chapter prompt template file")
     parser.add_argument("--toc-prompt-file", required=True, help="Path to ToC prompt template file")
     args = parser.parse_args()
-
-    # Initialize project
-    project = BookProject(args.project_dir)
-    project.init_project(args.topic, args.chapter_count)
-
     with open(args.chapter_prompt_file, "r", encoding="utf-8") as f:
         chapter_prompt_text = f.read()
     with open(args.toc_prompt_file, "r", encoding="utf-8") as f:
         toc_prompt_text = f.read()
-
     run_book_graph(
-        project=project,
+        topic=args.topic,
+        chapter_count=args.chapter_count,
+        output_dir=args.output_dir,
         chapter_prompt_text=chapter_prompt_text,
         toc_prompt_text=toc_prompt_text,
         chapter_length=args.chapter_length,
         section_length=args.section_length,
         toc_length=args.toc_length,
     )
-
-if __name__ == "__main__":
-    main()
-    # Only BookProject CLI logic and entrypoint remain. All undefined and legacy code removed.
