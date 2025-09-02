@@ -1,3 +1,5 @@
+[tool.poetry.scripts]
+gemini-book-generator = "gemini_book_generator.main:main"
 [tool.poetry]
 name = "gemini-book-generator"
 version = "0.1.0"

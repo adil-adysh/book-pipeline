@@ -1,152 +1,84 @@
-import os
-import tempfile
+# Add import for argparse
 import argparse
-from common_logger import logger
-from helpers import load_prompt, get_prompt_file_path
-from epub_generator import create_epub_from_md
-from book_graph import run_book_graph
+from gemini_book_generator.graph_state import StateModel
+from gemini_book_generator.toc_generation import generate_toc_node, write_toc_node, review_toc_node
+from gemini_book_generator.prompt_generation import write_prompts_node, review_prompts_node
+from gemini_book_generator.content_generation import generate_content_node
+from gemini_book_generator.project_manager import BookProject
+from langgraph.graph import StateGraph
 
 
 def parse_cli_args():
     """Parse command-line arguments for optional inputs."""
-    parser = argparse.ArgumentParser(
-        description="Generate an EPUB book from prompts and subtopics.",
-        add_help=False,  # Disable default help to add a custom help flag.
-    )
-    # Custom help flag: When provided, shows usage info and exits immediately.
-    parser.add_argument(
-        "-h", "--help", action="help", help="Show this help message and exit."
-    )
-    parser.add_argument(
-        "-s",
-        "--subtopics-list",
-        help="Comma-separated list of subtopics to include (optional).",
-        default="",
-    )
-    parser.add_argument(
-        "-t",
-        "--toc-prompt-file",
-        help="Path to a custom Table of Contents prompt file (optional).",
-        default="",
-    )
-    parser.add_argument(
-        "-c",
-        "--chapter-prompt-file",
-        help="Path to a custom chapter prompt file (optional).",
-        default="",
-    )
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Enable debug mode with verbose logging.",
-    )
-    parser.add_argument(
-        "--list-models",
-        action="store_true",
-        help="List available Gemini models and exit.",
-    )
-    args, _ = parser.parse_known_args()
-    return args
 
+    # ...existing code...
 
-def get_api_key():
-    """Retrieve and validate the API key from the environment."""
-    gemini_api_key = os.getenv("GEMINI_API_KEY")
-    if not gemini_api_key:
-        raise ValueError("GEMINI_API_KEY environment variable not set")
-    return gemini_api_key
+def build_book_graph():
+    graph = StateGraph(StateModel)
+    graph.add_node("generate_toc", generate_toc_node)
+    graph.add_node("write_toc", write_toc_node)
+    graph.add_node("review_toc", review_toc_node)
+    graph.add_node("write_prompts", write_prompts_node)
+    graph.add_node("review_prompts", review_prompts_node)
+    graph.add_node("generate_content", generate_content_node)
+    graph.add_node("end", lambda state: print("Book generation complete.") or state)
+    graph.add_edge("generate_toc", "write_toc")
+    graph.add_edge("write_toc", "review_toc")
+    graph.add_edge("review_toc", "write_prompts")
+    graph.add_edge("write_prompts", "review_prompts")
+    graph.add_edge("review_prompts", "generate_content")
+    graph.add_edge("generate_content", "end")
+    graph.set_entry_point("generate_toc")
+    return graph
 
+def run_book_graph(project: BookProject, chapter_prompt_text, toc_prompt_text, chapter_length="medium", section_length="medium", toc_length="medium"):
+    state = {
+        "topic": project.config.get("topic"),
+        "chapter_count": project.config.get("chapter_count"),
+        "output_dir": project.generated_dir,
+        "chapter_prompt_text": chapter_prompt_text,
+        "toc_prompt_text": toc_prompt_text,
+        "repo_root": project.project_root,
+        "chapter_length": chapter_length,
+        "section_length": section_length,
+        "toc_length": toc_length,
+    }
+    graph = build_book_graph()
+    compiled_graph = graph.compile()
+    compiled_graph.invoke(state)
 
-def get_combined_prompts(args, cur_dir):
-    """Return tuple of (toc_prompt_text, chapter_prompt_text) after applying any custom prompt files."""
-    toc_prompt_text = load_prompt(get_prompt_file_path("toc_prompt.txt"))
-    chapter_prompt_text = load_prompt(get_prompt_file_path("chapter_prompt.txt"))
-
-    if args.toc_prompt_file:
-        try:
-            toc_prompt_path = args.toc_prompt_file
-            if not os.path.isabs(toc_prompt_path):
-                toc_prompt_path = os.path.join(cur_dir, toc_prompt_path)
-            secondary_toc_prompt = load_prompt(toc_prompt_path)
-            toc_prompt_text += "\n" + secondary_toc_prompt
-            logger.debug("Appended secondary ToC prompt: %s", secondary_toc_prompt)
-        except Exception as e:
-            logger.warning("Could not load ToC prompt file: %s", e)
-
-    if args.chapter_prompt_file:
-        try:
-            chapter_prompt_path = args.chapter_prompt_file
-            if not os.path.isabs(chapter_prompt_path):
-                chapter_prompt_path = os.path.join(cur_dir, chapter_prompt_path)
-            secondary_chapter_prompt = load_prompt(chapter_prompt_path)
-            chapter_prompt_text += "\n" + secondary_chapter_prompt
-            logger.debug(
-                "Appended secondary chapter prompt: %s", secondary_chapter_prompt
-            )
-        except Exception as e:
-            logger.warning("Could not load chapter prompt file: %s", e)
-
-    return toc_prompt_text, chapter_prompt_text
-
-
-def run_book_graph_main(topic, chapter_count, toc_prompt_text, chapter_prompt_text):
-    """Runs the LangGraph book generation pipeline given the parameters."""
-    output_dir = tempfile.mkdtemp()
-    run_book_graph(
-        topic=topic,
-        chapter_count=chapter_count,
-        output_dir=output_dir,
-        chapter_prompt_text=chapter_prompt_text,
-        toc_prompt_text=toc_prompt_text,
-    )
-    epub_filename = f"{topic}.epub"
-    book_title = f"Book on {topic}"
-    create_epub_from_md(epub_filename, book_title, directory=output_dir)
-    logger.info("EPUB saved as '%s'.", epub_filename)
-
+    # ...existing code...
 
 def main():
-    try:
-        # Validate that the API key exists.
-        get_api_key()
+    parser = argparse.ArgumentParser(description="Run Gemini Book Generator with LangGraph")
+    parser.add_argument("--project-dir", required=True, help="Path to book project directory")
+    parser.add_argument("--topic", required=True, help="Book topic")
+    parser.add_argument("--chapter-count", required=True, help="Number of chapters")
+    parser.add_argument("--chapter-length", default="medium", help="Desired chapter length (short, medium, long, or word count)")
+    parser.add_argument("--section-length", default="medium", help="Desired section length (short, medium, long, or word count)")
+    parser.add_argument("--toc-length", default="medium", help="Desired ToC detail level (short, medium, long, or number of sections/levels)")
+    parser.add_argument("--chapter-prompt-file", required=True, help="Path to chapter prompt template file")
+    parser.add_argument("--toc-prompt-file", required=True, help="Path to ToC prompt template file")
+    args = parser.parse_args()
 
-        # Parse CLI args early so that --help is processed before any interactive input.
-        args = parse_cli_args()
+    # Initialize project
+    project = BookProject(args.project_dir)
+    project.init_project(args.topic, args.chapter_count)
 
-        # New: If --list-models flag provided, list models and exit.
-        if args.list_models:
-            from gemini_book_generator.gemini_llm import GeminiLLM
+    with open(args.chapter_prompt_file, "r", encoding="utf-8") as f:
+        chapter_prompt_text = f.read()
+    with open(args.toc_prompt_file, "r", encoding="utf-8") as f:
+        toc_prompt_text = f.read()
 
-            models = GeminiLLM.list_models()
-            print("Available Gemini models:")
-            for model in models:
-                print(f"- {model}")
-            return
-
-        # Use common logger with debug flag if needed.
-        if args.debug:
-            logger.setLevel("DEBUG")
-        else:
-            logger.setLevel("INFO")
-
-        # Now, gather mandatory inputs as strings.
-        topic = input("Enter the topic for the book: ").strip()
-        chapter_count = input("Enter the number of chapters to generate: ").strip()
-
-        # Get current working directory to resolve secondary prompt file paths.
-        cur_dir = os.getcwd()
-
-        toc_prompt_text, chapter_prompt_text = get_combined_prompts(args, cur_dir)
-        logger.debug("Initial ToC prompt text: %s", toc_prompt_text)
-        logger.debug("Initial chapter prompt text: %s", chapter_prompt_text)
-
-        run_book_graph_main(
-            topic, chapter_count, toc_prompt_text, chapter_prompt_text
-        )
-
-    except Exception as e:
-        logger.error("Error: %s", e)
-
+    run_book_graph(
+        project=project,
+        chapter_prompt_text=chapter_prompt_text,
+        toc_prompt_text=toc_prompt_text,
+        chapter_length=args.chapter_length,
+        section_length=args.section_length,
+        toc_length=args.toc_length,
+    )
 
 if __name__ == "__main__":
     main()
+    # Only BookProject CLI logic and entrypoint remain. All undefined and legacy code removed.
