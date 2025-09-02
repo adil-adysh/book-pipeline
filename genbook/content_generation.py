@@ -1,10 +1,14 @@
 import os
-from langchain_core.prompts import PromptTemplate
 from genbook.gemini_llm import GeminiLLM
 
 def generate_content_node(state):
     generated_prompts_dir = os.path.join(state.repo_root, "generated-prompts")
     section_prompt_path = os.path.join(state.repo_root, "genbook", "prompts", "section_prompt.txt")
+    # Lazy import for PromptTemplate to allow running without langchain_core installed
+    try:
+        from langchain_core.prompts import PromptTemplate
+    except Exception:
+        PromptTemplate = None
     def get_chapter_prompt_path(chapter_number: str) -> str:
         safe_chapter_number = chapter_number.replace('.', '_')
         return os.path.join(generated_prompts_dir, f"chapter_{safe_chapter_number}_prompt.txt")

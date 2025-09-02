@@ -1,24 +1,33 @@
 import os
 import json
-from langchain_core.prompts import PromptTemplate
 from genbook.gemini_llm import GeminiLLM
 
 def generate_toc_node(state):
+    # Lazy import to avoid hard dependency at import time
+    try:
+        from langchain_core.prompts import PromptTemplate
+    except Exception:
+        PromptTemplate = None
+
     gemini_llm = GeminiLLM(
         api_key=os.getenv("GEMINI_API_KEY"),
         model_name="gemini-2.0-flash",
         temperature=0.7,
     )
-    toc_template = PromptTemplate(
-        input_variables=["topic", "chapterCount", "toc_length"],
-        template=state.toc_prompt_text,
-    )
-    toc_chain = toc_template | gemini_llm
-    toc_raw = toc_chain.invoke({
-        "topic": state.topic,
-        "chapterCount": state.chapter_count,
-        "toc_length": state.toc_length,
-    })
+    if PromptTemplate is not None:
+        toc_template = PromptTemplate(
+            input_variables=["topic", "chapterCount", "toc_length"],
+            template=state.toc_prompt_text,
+        )
+        toc_chain = toc_template | gemini_llm
+        toc_raw = toc_chain.invoke({
+            "topic": state.topic,
+            "chapterCount": state.chapter_count,
+            "toc_length": state.toc_length,
+        })
+    else:
+        # Running without langchain: provide an empty TOC placeholder
+        toc_raw = '{"chapters": []}'
     toc_text = toc_raw
     if toc_text.startswith("```json"):
         toc_text = toc_text.replace("```json", "", 1)

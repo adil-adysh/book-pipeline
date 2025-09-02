@@ -3,7 +3,7 @@ from typing import Optional, Dict, Any
 
 class StateModel(BaseModel):
     topic: str
-    chapter_count: str
+    chapter_count: int
     output_dir: str
     chapter_prompt_text: str
     toc_prompt_text: str

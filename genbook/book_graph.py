@@ -29,7 +29,7 @@ def run_book_graph(topic, chapter_count, output_dir, chapter_prompt_text, toc_pr
     repo_root = os.path.dirname(os.path.dirname(__file__))
     state = {
         "topic": topic,
-        "chapter_count": chapter_count,
+    "chapter_count": int(chapter_count),
         "output_dir": output_dir,
         "chapter_prompt_text": chapter_prompt_text,
         "toc_prompt_text": toc_prompt_text,
